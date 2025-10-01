@@ -246,11 +246,11 @@ class JBAVerificationSystem:
                         
                         # メンバーIDが数字で、名前が空でない場合のみ追加
                         if member_id.isdigit() and name and name != "氏名":
-                        members.append({
-                            "member_id": member_id,
-                            "name": name,
+                            members.append({
+                                "member_id": member_id,
+                                "name": name,
                                 "birth_date": birth_date
-                        })
+                            })
             
             return {
                 "team_name": team_name,
@@ -739,7 +739,7 @@ def main():
         if active_tournament and active_tournament.get('response_accepting'):
             st.subheader("🏫 基本情報")
             with st.form("basic_info_form"):
-            col1, col2 = st.columns(2)
+                col1, col2 = st.columns(2)
             
             with col1:
                 division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
@@ -767,31 +767,31 @@ def main():
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                role = st.selectbox("役職", ["選手", "スタッフ"])
-                player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
-                birth_date = st.date_input("生年月日（年・月・日）")
-            
-            with col2:
-                photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
-                
-                if role == "選手":
-                    jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
-                else:
-                    jba_file = None
-                
-                if role == "スタッフ":
-                    staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
-                else:
-                    staff_file = None
-                
-                remarks = st.text_area("備考欄", height=100)
-            
-            submitted = st.form_submit_button("📤 申請を送信", type="primary")
-            
-            if submitted:
+                        role = st.selectbox("役職", ["選手", "スタッフ"])
+                        player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
+                        birth_date = st.date_input("生年月日（年・月・日）")
+                    
+                    with col2:
+                        photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
+                        
+                        if role == "選手":
+                            jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
+                        else:
+                            jba_file = None
+                        
+                        if role == "スタッフ":
+                            staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
+                        else:
+                            staff_file = None
+                        
+                        remarks = st.text_area("備考欄", height=100)
+                    
+                    submitted = st.form_submit_button("📤 申請を送信", type="primary")
+                    
+                    if submitted:
                         if not all([player_name, birth_date]):
-                    st.error("❌ 必須項目を入力してください")
-                else:
+                            st.error("❌ 必須項目を入力してください")
+                        else:
                             # JBAデータベースとの照合
                             st.info("🔍 JBAデータベースと照合中...")
                             verification_result = st.session_state.jba_system.verify_player_info(
@@ -866,10 +866,10 @@ def main():
                                 verification_result.get("similarity", 0.0)
                             ))
                             
-                    conn.commit()
-                    conn.close()
-                    
-                    st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
+                            conn.commit()
+                            conn.close()
+                            
+                            st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
                             st.info("🔄 次の選手・スタッフの情報を入力してください")
         else:
             # フォーム非表示時の案内
@@ -1076,7 +1076,7 @@ def main():
                     tournament_number = st.number_input("第○回", min_value=1, max_value=999, value=101)
                 
                 with col2:
-                new_tournament_year = st.text_input("年度", placeholder="例: 2025")
+                    new_tournament_year = st.text_input("年度", placeholder="例: 2025")
                 
                 # 自動生成された大会名を表示
                 if tournament_type and tournament_number:
