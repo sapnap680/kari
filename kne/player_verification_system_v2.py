@@ -893,19 +893,19 @@ def main():
                     ))
                     
                     application_id = cursor.lastrowid
-                        
-                        # 照合結果も保存
-                        cursor.execute('''
-                            INSERT INTO verification_results 
-                            (application_id, match_status, jba_name, jba_birth_date, similarity_score)
-                            VALUES (?, ?, ?, ?, ?)
-                        ''', (
-                            application_id,
-                            verification_result["status"],
-                            verification_result.get("jba_data", {}).get("name", ""),
-                            verification_result.get("jba_data", {}).get("birth_date", ""),
-                            verification_result.get("similarity", 0.0)
-                        ))
+                    
+                    # 照合結果も保存
+                    cursor.execute('''
+                        INSERT INTO verification_results 
+                        (application_id, match_status, jba_name, jba_birth_date, similarity_score)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (
+                        application_id,
+                        verification_result["status"],
+                        verification_result.get("jba_data", {}).get("name", ""),
+                        verification_result.get("jba_data", {}).get("birth_date", ""),
+                        verification_result.get("similarity", 0.0)
+                    ))
                         
                     conn.commit()
                     conn.close()
