@@ -846,12 +846,12 @@ def main():
                         player_data['remarks'],
                         player_data['photo_path'],
                         player_data['jba_file_path'],
-                                player_data['staff_file_path'],
-                                player_data['verification_result'],
-                                player_data['jba_match_data']
-                    ))
-                    
-                    application_id = cursor.lastrowid
+                        player_data['staff_file_path'],
+                        player_data['verification_result'],
+                        player_data['jba_match_data']
+                            ))
+                            
+                            application_id = cursor.lastrowid
                             
                             # 照合結果も保存
                             cursor.execute('''
