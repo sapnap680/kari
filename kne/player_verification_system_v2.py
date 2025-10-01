@@ -10,7 +10,19 @@ import streamlit as st
 import pandas as pd
 import json
 import requests
-from bs4 import BeautifulSoup
+import sys
+
+# 依存関係チェック（bs4 不足時に明示して停止）
+_BS4_VERSION = None
+try:
+    from bs4 import BeautifulSoup  # type: ignore
+    import bs4 as _bs4  # type: ignore
+    _BS4_VERSION = getattr(_bs4, "__version__", "unknown")
+except Exception:
+    st.error(
+        "依存パッケージ 'beautifulsoup4' が見つかりません。requirements.txt がデプロイで読み込まれているか確認してください。"
+    )
+    st.stop()
 import sqlite3
 import os
 from datetime import datetime
@@ -626,6 +638,11 @@ def main():
     """メイン関数"""
     st.title("🏀 仮選手証システム v2.0")
     st.markdown("**Playwright不要・requests + BeautifulSoupベース**")
+    # 環境情報（サイドバー）
+    with st.sidebar.expander("🧰 環境情報", expanded=False):
+        st.write(f"bs4: {_BS4_VERSION}")
+        st.write(f"requests: {requests.__version__}")
+        st.write(f"python: {sys.version.split()[0]}")
     
     # システム初期化
     if 'db_manager' not in st.session_state:
