@@ -260,6 +260,45 @@ class JBAVerificationSystem:
             st.error(f"❌ メンバー取得エラー: {str(e)}")
             return {"team_name": "Error", "team_url": team_url, "members": []}
     
+    def verify_player_info(self, player_name, birth_date, university):
+        """個別選手情報の照合"""
+        try:
+            # 大学のチームを検索
+            teams = self.search_teams_by_university(university)
+            
+            if not teams:
+                return {"status": "not_found", "message": f"{university}のチームが見つかりませんでした"}
+            
+            # 各チームのメンバー情報を取得して照合
+            for team in teams:
+                team_data = self.get_team_members(team['url'])
+                if team_data and team_data["members"]:
+                    for member in team_data["members"]:
+                        # 名前の類似度チェック
+                        name_similarity = SequenceMatcher(None, player_name, member["name"]).ratio()
+                        
+                        # 生年月日の照合
+                        birth_match = birth_date == member["birth_date"]
+                        
+                        if name_similarity > 0.8 and birth_match:
+                            return {
+                                "status": "match",
+                                "jba_data": member,
+                                "similarity": name_similarity
+                            }
+                        elif name_similarity > 0.8:
+                            return {
+                                "status": "name_match_birth_mismatch",
+                                "jba_data": member,
+                                "similarity": name_similarity,
+                                "message": f"名前は一致しますが、生年月日が異なります。JBA登録: {member['birth_date']}"
+                            }
+            
+            return {"status": "not_found", "message": "JBAデータベースに該当する選手が見つかりませんでした"}
+            
+        except Exception as e:
+            return {"status": "error", "message": f"照合エラー: {str(e)}"}
+    
     def get_university_data(self, university_name):
         """大学のデータを取得"""
         st.info(f"🔍 {university_name}のチームを検索中...")
@@ -472,7 +511,7 @@ class PrintSystem:
         self.db_manager = db_manager
     
     def create_individual_certificate(self, application_id):
-        """個別の仮選手証を作成"""
+        """個別の仮選手証を作成（A4縦サイズ、8枚配置）"""
         try:
             conn = sqlite3.connect(self.db_manager.db_path)
             cursor = conn.cursor()
@@ -488,9 +527,11 @@ class PrintSystem:
                     vr.match_status,
                     vr.jba_name,
                     vr.jba_birth_date,
-                    vr.similarity_score
+                    vr.similarity_score,
+                    t.tournament_name
                 FROM player_applications pa
                 LEFT JOIN verification_results vr ON pa.id = vr.application_id
+                LEFT JOIN tournaments t ON pa.tournament_id = t.id
                 WHERE pa.id = ?
             ''', (application_id,))
             
@@ -504,79 +545,69 @@ class PrintSystem:
             # ワード文書を作成
             doc = Document()
             
-            # ページ設定
+            # ページ設定（A4縦）
             section = doc.sections[0]
-            section.page_width = Inches(8.5)
-            section.page_height = Inches(11)
-            section.left_margin = Inches(0.5)
-            section.right_margin = Inches(0.5)
-            section.top_margin = Inches(0.5)
-            section.bottom_margin = Inches(0.5)
+            section.page_width = Inches(8.27)  # A4幅
+            section.page_height = Inches(11.69)  # A4高
+            section.left_margin = Inches(0.2)
+            section.right_margin = Inches(0.2)
+            section.top_margin = Inches(0.2)
+            section.bottom_margin = Inches(0.2)
             
-            # タイトル
-            title = doc.add_heading('第65回関東大学バスケットボール 新人戦', 0)
-            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            
-            # 証明書の種類
-            cert_type = doc.add_heading('仮選手証・スタッフ証', 1)
-            cert_type.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            
-            # 証明書の内容をテーブル形式で作成
-            cert_table = doc.add_table(rows=6, cols=2)
-            cert_table.style = 'Table Grid'
-            cert_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-            
-            # テーブルの列幅を設定
-            for column in cert_table.columns:
-                for cell in column.cells:
-                    cell.width = Inches(2.0)
-            
-            # 大学名
-            cert_table.rows[0].cells[0].text = '大学'
-            cert_table.rows[0].cells[1].text = result[2]  # 大学名
-            
-            # 氏名
-            cert_table.rows[1].cells[0].text = '氏名'
-            cert_table.rows[1].cells[1].text = result[0]  # 氏名
-            
-            # 生年月日
-            cert_table.rows[2].cells[0].text = '生年月日'
-            cert_table.rows[2].cells[1].text = result[1]  # 生年月日
-            
-            # 役職
-            cert_table.rows[3].cells[0].text = '役職'
-            cert_table.rows[3].cells[1].text = result[4]  # 役職
-            
-            # 部
-            cert_table.rows[4].cells[0].text = '部'
-            cert_table.rows[4].cells[1].text = result[3]  # 部
-            
-            # 照合結果
-            cert_table.rows[5].cells[0].text = '照合結果'
-            if result[6]:  # 照合結果がある場合
-                cert_table.rows[5].cells[1].text = result[6]
-            else:
-                cert_table.rows[5].cells[1].text = '未照合'
-            
-            # 顔写真のプレースホルダー
-            doc.add_paragraph()
-            photo_placeholder = doc.add_paragraph('【顔写真】')
-            photo_placeholder.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            
-            # 有効期限の注意事項
-            doc.add_paragraph()
-            validity_note = doc.add_paragraph('※ この証明書は第65回関東大学バスケットボール新人戦のみ有効')
-            validity_note.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            
-            # 発行機関
-            doc.add_paragraph()
-            issuer = doc.add_paragraph('一般社団法人関東大学バスケットボール連盟')
-            issuer.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            
-            # 発行日
-            doc.add_paragraph()
-            issue_date = doc.add_paragraph(f'発行日: {datetime.now().strftime("%Y年%m月%d日")}')
-            issue_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            # 8枚のカードを2列4行で配置
+            for row in range(4):
+                # 2列のカードを作成
+                for col in range(2):
+                    # カードの位置計算
+                    card_width = Inches(3.8)
+                    card_height = Inches(2.8)
+                    left_pos = Inches(0.1 + col * 4.0)
+                    top_pos = Inches(0.1 + row * 2.9)
+                    
+                    # カードの枠を作成
+                    card_table = doc.add_table(rows=1, cols=1)
+                    card_table.style = 'Table Grid'
+                    
+                    # カードの内容
+                    card_cell = card_table.rows[0].cells[0]
+                    card_cell.width = card_width
+                    
+                    # 大会名
+                    tournament_name = result[10] if result[10] else "第65回関東大学バスケットボール新人戦"
+                    card_cell.text = f"{tournament_name}\n仮選手証・スタッフ証\n\n"
+                    
+                    # 大学名
+                    card_cell.text += f"大学: {result[2]}\n"
+                    
+                    # 氏名
+                    card_cell.text += f"氏名: {result[0]}\n"
+                    
+                    # 生年月日
+                    card_cell.text += f"生年月日: {result[1]}\n"
+                    
+                    # 役職
+                    card_cell.text += f"役職: {result[4]}\n"
+                    
+                    # 部
+                    card_cell.text += f"部: {result[3]}\n"
+                    
+                    # 照合結果
+                    if result[6]:  # 照合結果がある場合
+                        card_cell.text += f"照合結果: {result[6]}\n"
+                    else:
+                        card_cell.text += "照合結果: 未照合\n"
+                    
+                    # 顔写真エリア
+                    card_cell.text += "\n【顔写真】\n"
+                    
+                    # 有効期限
+                    card_cell.text += f"※ {tournament_name}のみ有効\n"
+                    
+                    # 発行機関
+                    card_cell.text += "一般社団法人関東大学バスケットボール連盟\n"
+                    
+                    # 発行日
+                    card_cell.text += f"発行日: {datetime.now().strftime('%Y年%m月%d日')}"
             
             return doc
             
@@ -708,52 +739,100 @@ def main():
         
         # 申請フォーム（アクティブ大会かつ受付中のときのみ表示）
         if active_tournament and active_tournament.get('response_accepting'):
-            with st.form("player_application_form"):
+            st.subheader("🏫 基本情報")
+            with st.form("basic_info_form"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
                     university = st.text_input("大学名", placeholder="例: 白鴎大学")
-                    role = st.selectbox("役職", ["選手", "スタッフ"])
-                    player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
-                    birth_date = st.date_input("生年月日（年・月・日）")
                 
                 with col2:
-                    photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
-                    
-                    if role == "選手":
-                        jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
-                    else:
-                        jba_file = None
-                    
-                    if role == "スタッフ":
-                        staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
-                    else:
-                        staff_file = None
-                    
-                    remarks = st.text_area("備考欄", height=100)
-                    email = st.text_input("メールアドレス", placeholder="例: example@university.ac.jp")
-                    phone = st.text_input("電話番号", placeholder="例: 090-1234-5678")
+                    tournament_type = st.selectbox("大会種別", ["選手権大会", "新人戦", "リーグ戦"])
+                    tournament_number = st.number_input("第○回", min_value=1, max_value=999, value=101)
                 
-                submitted = st.form_submit_button("📤 申請を送信", type="primary")
+                basic_submitted = st.form_submit_button("📝 基本情報を設定", type="primary")
+            
+            if basic_submitted and university:
+                st.session_state.basic_info = {
+                    'division': division,
+                    'university': university,
+                    'tournament_type': tournament_type,
+                    'tournament_number': tournament_number
+                }
+                st.success("✅ 基本情報を設定しました")
+            
+            # 選手・スタッフ情報入力
+            if 'basic_info' in st.session_state:
+                st.subheader("👥 選手・スタッフ情報")
+                st.info(f"**{st.session_state.basic_info['university']}** - {st.session_state.basic_info['division']} - 第{st.session_state.basic_info['tournament_number']}回関東大学バスケットボール{st.session_state.basic_info['tournament_type']}")
+                
+                with st.form("player_application_form"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        role = st.selectbox("役職", ["選手", "スタッフ"])
+                        player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
+                        birth_date = st.date_input("生年月日（年・月・日）")
+                        is_newcomer = st.radio("新入生ですか？", ["はい", "いいえ"], horizontal=True)
+                    
+                    with col2:
+                        photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
+                        
+                        if role == "選手":
+                            jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
+                        else:
+                            jba_file = None
+                        
+                        if role == "スタッフ":
+                            staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
+                        else:
+                            staff_file = None
+                        
+                        remarks = st.text_area("備考欄", height=100)
+                    
+                    submitted = st.form_submit_button("📤 申請を送信", type="primary")
                 
                 if submitted:
-                    if not all([university, player_name, birth_date]):
+                    if not all([player_name, birth_date]):
                         st.error("❌ 必須項目を入力してください")
                     else:
+                        # JBAデータベースとの照合
+                        st.info("🔍 JBAデータベースと照合中...")
+                        verification_result = st.session_state.jba_system.verify_player_info(
+                            player_name, 
+                            birth_date.strftime('%Y/%m/%d'),
+                            st.session_state.basic_info['university']
+                        )
+                        
+                        # 照合結果の表示
+                        if verification_result["status"] == "match":
+                            st.success("✅ JBAデータベースと完全一致しました")
+                        elif verification_result["status"] == "name_match_birth_mismatch":
+                            st.warning(f"⚠️ {verification_result['message']}")
+                        elif verification_result["status"] == "birth_match_name_mismatch":
+                            st.warning(f"⚠️ {verification_result['message']}")
+                        elif verification_result["status"] == "not_found":
+                            st.error(f"❌ {verification_result['message']}")
+                        else:
+                            st.error(f"❌ {verification_result['message']}")
+                        
                         # 申請データを保存
+                        tournament_name = f"第{st.session_state.basic_info['tournament_number']}回関東大学バスケットボール{st.session_state.basic_info['tournament_type']}"
+                        
                         player_data = {
                             'player_name': player_name,
                             'birth_date': birth_date.strftime('%Y/%m/%d'),
-                            'university': university,
-                            'division': division,
+                            'university': st.session_state.basic_info['university'],
+                            'division': st.session_state.basic_info['division'],
                             'role': role,
-                            'email': email,
-                            'phone': phone,
+                            'is_newcomer': is_newcomer == "はい",
                             'remarks': remarks,
                             'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
                             'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
-                            'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None
+                            'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None,
+                            'verification_result': verification_result["status"],
+                            'jba_match_data': str(verification_result.get("jba_data", {}))
                         }
                         
                         # データベースに保存
@@ -762,7 +841,7 @@ def main():
                         
                         cursor.execute('''
                             INSERT INTO player_applications 
-                            (tournament_id, player_name, birth_date, university, division, role, email, phone, remarks, photo_path, jba_file_path, staff_file_path)
+                            (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ''', (
                             active_tournament['id'],
@@ -771,19 +850,34 @@ def main():
                             player_data['university'],
                             player_data['division'],
                             player_data['role'],
-                            player_data['email'],
-                            player_data['phone'],
                             player_data['remarks'],
                             player_data['photo_path'],
                             player_data['jba_file_path'],
-                            player_data['staff_file_path']
+                            player_data['staff_file_path'],
+                            player_data['verification_result'],
+                            player_data['jba_match_data']
                         ))
                         
                         application_id = cursor.lastrowid
+                        
+                        # 照合結果も保存
+                        cursor.execute('''
+                            INSERT INTO verification_results 
+                            (application_id, match_status, jba_name, jba_birth_date, similarity_score)
+                            VALUES (?, ?, ?, ?, ?)
+                        ''', (
+                            application_id,
+                            verification_result["status"],
+                            verification_result.get("jba_data", {}).get("name", ""),
+                            verification_result.get("jba_data", {}).get("birth_date", ""),
+                            verification_result.get("similarity", 0.0)
+                        ))
+                        
                         conn.commit()
                         conn.close()
                         
                         st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
+                        st.info("🔄 次の選手・スタッフの情報を入力してください")
         else:
             # フォーム非表示時の案内
             if active_tournament is None:
