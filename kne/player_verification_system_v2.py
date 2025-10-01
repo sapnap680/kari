@@ -695,22 +695,20 @@ def main():
     with tab1:
         st.header("📝 仮選手証・仮スタッフ証申請フォーム")
         
-        # アクティブな大会情報を表示
+        # アクティブな大会情報を表示（フォームはガードし、アプリ全体は止めない）
         active_tournament = st.session_state.tournament_management.get_active_tournament()
         if active_tournament:
             st.info(f"**大会名**: {active_tournament['tournament_name']} ({active_tournament['tournament_year']}年度)")
-            
             if active_tournament['response_accepting']:
                 st.success("✅ 回答受付中")
             else:
                 st.error("❌ 回答受付停止中")
-                st.stop()
         else:
-            st.warning("⚠️ アクティブな大会が設定されていません")
-            st.stop()
+            st.warning("⚠️ アクティブな大会が設定されていません（管理者は“🎛️ 管理者”タブから大会を作成してください）")
         
-        # 申請フォーム
-        with st.form("player_application_form"):
+        # 申請フォーム（アクティブ大会かつ受付中のときのみ表示）
+        if active_tournament and active_tournament.get('response_accepting'):
+            with st.form("player_application_form"):
             col1, col2 = st.columns(2)
             
             with col1:
@@ -786,6 +784,12 @@ def main():
                     conn.close()
                     
                     st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
+        else:
+            # フォーム非表示時の案内
+            if active_tournament is None:
+                st.info("管理者が大会を作成すると申請フォームが表示されます。")
+            elif not active_tournament.get('response_accepting'):
+                st.info("現在、この大会の回答受付は停止中です。")
     
     # 照合結果
     with tab2:
