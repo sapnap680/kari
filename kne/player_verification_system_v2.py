@@ -628,25 +628,25 @@ class PrintSystem:
                     card_cell.text += f"役職: {result[4]}\n"
             
             # 部
-                    card_cell.text += f"部: {result[3]}\n"
+            card_cell.text += f"部: {result[3]}\n"
             
             # 照合結果
             if result[6]:  # 照合結果がある場合
-                        card_cell.text += f"照合結果: {result[6]}\n"
+                card_cell.text += f"照合結果: {result[6]}\n"
             else:
-                        card_cell.text += "照合結果: 未照合\n"
-                    
-                    # 顔写真エリア
-                    card_cell.text += "\n【顔写真】\n"
-                    
-                    # 有効期限
-                    card_cell.text += f"※ {tournament_name}のみ有効\n"
+                card_cell.text += "照合結果: 未照合\n"
+            
+            # 顔写真エリア
+            card_cell.text += "\n【顔写真】\n"
+            
+            # 有効期限
+            card_cell.text += f"※ {tournament_name}のみ有効\n"
             
             # 発行機関
-                    card_cell.text += "一般社団法人関東大学バスケットボール連盟\n"
+            card_cell.text += "一般社団法人関東大学バスケットボール連盟\n"
             
             # 発行日
-                    card_cell.text += f"発行日: {datetime.now().strftime('%Y年%m月%d日')}"
+            card_cell.text += f"発行日: {datetime.now().strftime('%Y年%m月%d日')}"
             
             return doc
             
