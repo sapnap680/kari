@@ -263,6 +263,24 @@ class JBAVerificationSystem:
             st.write(f"**エラー詳細**: {traceback.format_exc()}")
             return {"team_name": "Error", "team_url": team_url, "members": []}
     
+    def normalize_date_format(self, date_str):
+        """日付フォーマットを統一（YYYY/M/D → YYYY/M/D）"""
+        try:
+            if not date_str:
+                return ""
+            
+            # 既に統一された形式の場合はそのまま返す
+            if "/" in date_str and len(date_str.split("/")) == 3:
+                parts = date_str.split("/")
+                year = parts[0]
+                month = str(int(parts[1]))  # 先頭の0を削除
+                day = str(int(parts[2]))    # 先頭の0を削除
+                return f"{year}/{month}/{day}"
+            
+            return date_str
+        except:
+            return date_str
+    
     def verify_player_info(self, player_name, birth_date, university):
         """個別選手情報の照合（男子チームのみ）"""
         try:
@@ -272,6 +290,9 @@ class JBAVerificationSystem:
             if not teams:
                 return {"status": "not_found", "message": f"{university}の男子チームが見つかりませんでした"}
             
+            # 入力された生年月日を正規化
+            normalized_input_date = self.normalize_date_format(birth_date)
+            
             # 各チームのメンバー情報を取得して照合
             for team in teams:
                 team_data = self.get_team_members(team['url'])
@@ -280,8 +301,9 @@ class JBAVerificationSystem:
                         # 名前の類似度チェック
                         name_similarity = SequenceMatcher(None, player_name, member["name"]).ratio()
                         
-                        # 生年月日の照合
-                        birth_match = birth_date == member["birth_date"]
+                        # 生年月日の照合（正規化された形式で比較）
+                        jba_date = self.normalize_date_format(member["birth_date"])
+                        birth_match = normalized_input_date == jba_date
                         
                         if name_similarity > 0.8 and birth_match:
                             return {
@@ -665,13 +687,81 @@ class AdminDashboard:
 
 def main():
     """メイン関数"""
-    st.title("🏀 仮選手証システム v2.0")
-    st.markdown("**Playwright不要・requests + BeautifulSoupベース**")
+    # カスタムCSS
+    st.markdown("""
+    <style>
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        color: white;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .main-header h1 {
+        margin: 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+    }
+    .main-header p {
+        margin: 0.5rem 0 0 0;
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+    .card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1rem;
+        border-left: 4px solid #667eea;
+    }
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    .status-match {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .status-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .sidebar-content {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # メインヘッダー
+    st.markdown("""
+    <div class="main-header">
+        <h1>🏀 仮選手証・スタッフ証発行システム</h1>
+        <p>関東大学バスケットボール連盟 公式システム</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     # 環境情報（サイドバー）
-    with st.sidebar.expander("🧰 環境情報", expanded=False):
-        st.write(f"bs4: {_BS4_VERSION}")
-        st.write(f"requests: {requests.__version__}")
-        st.write(f"python: {sys.version.split()[0]}")
+    with st.sidebar:
+        st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
+        st.subheader("🧰 システム情報")
+        st.write(f"**BeautifulSoup**: {_BS4_VERSION}")
+        st.write(f"**Requests**: {requests.__version__}")
+        st.write(f"**Python**: {sys.version.split()[0]}")
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # システム初期化
     if 'db_manager' not in st.session_state:
@@ -722,7 +812,10 @@ def main():
     
     # 申請フォーム
     with tab1:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.header("📝 仮選手証・仮スタッフ証申請フォーム")
+        st.markdown("**関東大学バスケットボール連盟** の公式申請システムです。")
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # アクティブな大会情報を表示（フォームはガードし、アプリ全体は止めない）
         active_tournament = st.session_state.tournament_management.get_active_tournament()
@@ -769,7 +862,7 @@ def main():
                     with col1:
                         role = st.selectbox("役職", ["選手", "スタッフ"])
                         player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
-                        birth_date = st.date_input("生年月日（年・月・日）")
+                        birth_date = st.date_input("生年月日（年・月・日）", value=datetime(2000, 1, 1))
                     
                     with col2:
                         photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
@@ -790,85 +883,51 @@ def main():
                         if not all([player_name, birth_date]):
                             st.error("❌ 必須項目を入力してください")
                         else:
-                            # JBAデータベースとの照合
-                            st.info("🔍 JBAデータベースと照合中...")
-                            verification_result = st.session_state.jba_system.verify_player_info(
-                                player_name,
-                                birth_date.strftime('%Y/%m/%d'),
-                                st.session_state.basic_info['university']
-                            )
-                        
-                            # 照合結果の表示
-                            if verification_result["status"] == "match":
-                                st.success("✅ JBAデータベースと完全一致しました")
-                            elif verification_result["status"] == "name_match_birth_mismatch":
-                                st.warning(f"⚠️ {verification_result['message']}")
-                            elif verification_result["status"] == "birth_match_name_mismatch":
-                                st.warning(f"⚠️ {verification_result['message']}")
-                            elif verification_result["status"] == "not_found":
-                                st.error(f"❌ {verification_result['message']}")
-                            else:
-                                st.error(f"❌ {verification_result['message']}")
-                            
-                    # 申請データを保存
-                    player_data = {
-                        'player_name': player_name,
-                        'birth_date': birth_date.strftime('%Y/%m/%d'),
+                            # 申請データを保存
+                            player_data = {
+                                'player_name': player_name,
+                                'birth_date': birth_date.strftime('%Y/%m/%d'),
                                 'university': st.session_state.basic_info['university'],
                                 'division': st.session_state.basic_info['division'],
-                        'role': role,
+                                'role': role,
                                 'is_newcomer': st.session_state.basic_info['is_newcomer'],
-                        'remarks': remarks,
-                        'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
-                        'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
+                                'remarks': remarks,
+                                'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
+                                'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
                                 'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None,
-                                'verification_result': verification_result["status"],
-                                'jba_match_data': str(verification_result.get("jba_data", {}))
-                    }
-                    
-                    # データベースに保存
-                    conn = sqlite3.connect(st.session_state.db_manager.db_path)
-                    cursor = conn.cursor()
-                    
-                    cursor.execute('''
-                        INSERT INTO player_applications 
-                                    (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        active_tournament['id'],
-                        player_data['player_name'],
-                        player_data['birth_date'],
-                        player_data['university'],
-                        player_data['division'],
-                        player_data['role'],
-                        player_data['remarks'],
-                        player_data['photo_path'],
-                        player_data['jba_file_path'],
-                        player_data['staff_file_path'],
-                        player_data['verification_result'],
-                        player_data['jba_match_data']
-                    ))
-                    
-                    application_id = cursor.lastrowid
-                    
-                    # 照合結果も保存
-                    cursor.execute('''
-                                INSERT INTO verification_results 
-                                (application_id, match_status, jba_name, jba_birth_date, similarity_score)
-                                VALUES (?, ?, ?, ?, ?)
+                                'verification_result': "pending",  # 管理者が照合するまで保留
+                                'jba_match_data': ""
+                            }
+                            
+                            # データベースに保存
+                            conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                            cursor = conn.cursor()
+                            
+                            cursor.execute('''
+                                INSERT INTO player_applications 
+                                (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (
-                                application_id,
-                                verification_result["status"],
-                                verification_result.get("jba_data", {}).get("name", ""),
-                                verification_result.get("jba_data", {}).get("birth_date", ""),
-                                verification_result.get("similarity", 0.0)
+                                active_tournament['id'],
+                                player_data['player_name'],
+                                player_data['birth_date'],
+                                player_data['university'],
+                                player_data['division'],
+                                player_data['role'],
+                                player_data['remarks'],
+                                player_data['photo_path'],
+                                player_data['jba_file_path'],
+                                player_data['staff_file_path'],
+                                player_data['verification_result'],
+                                player_data['jba_match_data']
                             ))
                             
-                    conn.commit()
-                    conn.close()
-                    
-                    st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
-                    st.info("🔄 次の選手・スタッフの情報を入力してください")
+                            application_id = cursor.lastrowid
+                            conn.commit()
+                            conn.close()
+                            
+                            st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
+                            st.info("🔄 次の選手・スタッフの情報を入力してください")
         else:
             # フォーム非表示時の案内
             if active_tournament is None:
@@ -878,7 +937,10 @@ def main():
     
     # 照合結果
     with tab2:
-        st.header("🔍 照合結果")
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.header("🔍 申請照合・管理")
+        st.markdown("**管理者専用**: 申請された情報をJBAデータベースと照合し、データを管理します。")
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # JBAログイン情報
         with st.expander("🔐 JBAログイン設定"):
@@ -917,27 +979,114 @@ def main():
                 else:
                     st.error("❌ チーム情報を取得できませんでした")
         
-        # 大学名で検索
-        st.subheader("🏫 大学名で検索")
-        university_name = st.text_input("大学名", placeholder="例: 白鴎大学")
+        # 申請一覧と照合
+        st.subheader("📋 申請一覧と照合")
+        active_tournament = st.session_state.tournament_management.get_active_tournament()
         
-        if st.button("🔍 大学検索実行") and university_name:
-            if not st.session_state.jba_system.logged_in:
-                st.error("❌ 先にJBAにログインしてください")
-            else:
-                # 大学データを取得
-                university_data = st.session_state.jba_system.get_university_data(university_name)
+        if active_tournament:
+            conn = sqlite3.connect(st.session_state.db_manager.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT id, player_name, birth_date, university, division, role, application_date, verification_result
+                FROM player_applications 
+                WHERE tournament_id = ?
+                ORDER BY application_date DESC
+            ''', (active_tournament['id'],))
+            
+            applications = cursor.fetchall()
+            conn.close()
+            
+            if applications:
+                st.write(f"**{active_tournament['tournament_name']}** の申請一覧")
                 
-                if university_data:
-                    st.success(f"✅ {university_name}のデータを取得しました")
-                    st.write(f"**メンバー数**: {len(university_data['members'])}人")
+                for app in applications:
+                    app_id, player_name, birth_date, university, division, role, app_date, verification_status = app
                     
-                    # メンバー一覧を表示
-                    if university_data['members']:
-                        df = pd.DataFrame(university_data['members'])
-                        st.dataframe(df)
-                else:
-                    st.error(f"❌ {university_name}のデータを取得できませんでした")
+                    # ステータスバッジの色を決定
+                    if verification_status == "pending":
+                        status_class = "status-pending"
+                        status_text = "待機中"
+                    elif verification_status == "match":
+                        status_class = "status-match"
+                        status_text = "一致"
+                    else:
+                        status_class = "status-error"
+                        status_text = "不一致"
+                    
+                    with st.expander(f"申請ID: {app_id} - {player_name} ({university}) - {status_text}"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown('<div class="card">', unsafe_allow_html=True)
+                            st.write(f"**氏名**: {player_name}")
+                            st.write(f"**生年月日**: {birth_date}")
+                            st.write(f"**大学**: {university}")
+                            st.write(f"**部**: {division}")
+                            st.write(f"**役職**: {role}")
+                            st.write(f"**申請日**: {app_date}")
+                            st.markdown('</div>', unsafe_allow_html=True)
+                        
+                        with col2:
+                            st.markdown('<div class="card">', unsafe_allow_html=True)
+                            # 照合ボタン
+                            if st.button(f"🔍 照合実行", key=f"verify_{app_id}", type="primary"):
+                                if not st.session_state.jba_system.logged_in:
+                                    st.error("❌ 先にJBAにログインしてください")
+                                else:
+                                    st.info("🔍 JBAデータベースと照合中...")
+                                    verification_result = st.session_state.jba_system.verify_player_info(
+                                        player_name, birth_date, university
+                                    )
+                                    
+                                    # 照合結果をデータベースに保存
+                                    conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                                    cursor = conn.cursor()
+                                    
+                                    # 既存の照合結果を更新
+                                    cursor.execute('''
+                                        UPDATE player_applications 
+                                        SET verification_result = ?, jba_match_data = ?
+                                        WHERE id = ?
+                                    ''', (
+                                        verification_result["status"],
+                                        str(verification_result.get("jba_data", {})),
+                                        app_id
+                                    ))
+                                    
+                                    # 照合結果テーブルにも保存
+                                    cursor.execute('''
+                                        INSERT OR REPLACE INTO verification_results 
+                                        (application_id, match_status, jba_name, jba_birth_date, similarity_score)
+                                        VALUES (?, ?, ?, ?, ?)
+                                    ''', (
+                                        app_id,
+                                        verification_result["status"],
+                                        verification_result.get("jba_data", {}).get("name", ""),
+                                        verification_result.get("jba_data", {}).get("birth_date", ""),
+                                        verification_result.get("similarity", 0.0)
+                                    ))
+                                    
+                                    conn.commit()
+                                    conn.close()
+                                    
+                                    st.rerun()
+                            
+                            # 照合結果の表示
+                            if verification_status != "pending":
+                                if verification_status == "match":
+                                    st.success("✅ JBAデータベースと完全一致")
+                                elif verification_status == "name_match_birth_mismatch":
+                                    st.warning("⚠️ 名前は一致、生年月日が異なる")
+                                elif verification_status == "not_found":
+                                    st.error("❌ JBAデータベースに該当なし")
+                                else:
+                                    st.info(f"📊 照合結果: {verification_status}")
+                            st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.info("申請がありません")
+        else:
+            st.info("アクティブな大会が設定されていません")
     
     
     # 印刷
