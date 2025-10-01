@@ -849,12 +849,12 @@ def main():
                         player_data['staff_file_path'],
                         player_data['verification_result'],
                         player_data['jba_match_data']
-                            ))
-                            
-                            application_id = cursor.lastrowid
-                            
-                            # 照合結果も保存
-                            cursor.execute('''
+                    ))
+                    
+                    application_id = cursor.lastrowid
+                    
+                    # 照合結果も保存
+                    cursor.execute('''
                                 INSERT INTO verification_results 
                                 (application_id, match_status, jba_name, jba_birth_date, similarity_score)
                                 VALUES (?, ?, ?, ?, ?)
@@ -866,11 +866,11 @@ def main():
                                 verification_result.get("similarity", 0.0)
                             ))
                             
-                            conn.commit()
-                            conn.close()
-                            
-                            st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
-                            st.info("🔄 次の選手・スタッフの情報を入力してください")
+                    conn.commit()
+                    conn.close()
+                    
+                    st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
+                    st.info("🔄 次の選手・スタッフの情報を入力してください")
         else:
             # フォーム非表示時の案内
             if active_tournament is None:
