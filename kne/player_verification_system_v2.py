@@ -808,38 +808,38 @@ def main():
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                role = st.selectbox("役職", ["選手", "スタッフ"])
-                player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
-                birth_date = st.date_input("生年月日（年・月・日）")
-            
-            with col2:
-                photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
-                
-                if role == "選手":
-                    jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
-                else:
-                    jba_file = None
-                
-                if role == "スタッフ":
-                    staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
-                else:
-                    staff_file = None
-                
-                remarks = st.text_area("備考欄", height=100)
-            
-            submitted = st.form_submit_button("📤 申請を送信", type="primary")
-            
-            if submitted:
-                    if not all([player_name, birth_date]):
-                    st.error("❌ 必須項目を入力してください")
-                else:
-                        # JBAデータベースとの照合
-                        st.info("🔍 JBAデータベースと照合中...")
-                        verification_result = st.session_state.jba_system.verify_player_info(
-                            player_name, 
-                            birth_date.strftime('%Y/%m/%d'),
-                            st.session_state.basic_info['university']
-                        )
+                        role = st.selectbox("役職", ["選手", "スタッフ"])
+                        player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
+                        birth_date = st.date_input("生年月日（年・月・日）")
+                    
+                    with col2:
+                        photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
+                        
+                        if role == "選手":
+                            jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
+                        else:
+                            jba_file = None
+                        
+                        if role == "スタッフ":
+                            staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
+                        else:
+                            staff_file = None
+                        
+                        remarks = st.text_area("備考欄", height=100)
+                    
+                    submitted = st.form_submit_button("📤 申請を送信", type="primary")
+                    
+                    if submitted:
+                        if not all([player_name, birth_date]):
+                            st.error("❌ 必須項目を入力してください")
+                        else:
+                            # JBAデータベースとの照合
+                            st.info("🔍 JBAデータベースと照合中...")
+                            verification_result = st.session_state.jba_system.verify_player_info(
+                                player_name,
+                                birth_date.strftime('%Y/%m/%d'),
+                                st.session_state.basic_info['university']
+                            )
                         
                         # 照合結果の表示
                         if verification_result["status"] == "match":
