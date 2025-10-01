@@ -683,12 +683,12 @@ def main():
     if admin_mode:
         # 管理者タブ
         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-            "📝 申請フォーム", "🔍 照合結果", "📊 統計", "🖨️ 印刷", "📧 通知", "🎛️ 管理者"
+            "📝 申請フォーム", "🔍 照合結果", "🖨️ 印刷", "📧 通知", "📊 統計", "🎛️ 管理者"
         ])
     else:
         # 一般ユーザータブ
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "📝 申請フォーム", "🔍 照合結果", "📊 統計", "🖨️ 印刷", "📧 通知"
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📝 申請フォーム", "🔍 照合結果", "🖨️ 印刷", "📧 通知"
         ])
     
     # 申請フォーム
@@ -826,52 +826,9 @@ def main():
                 else:
                     st.error(f"❌ {university_name}のデータを取得できませんでした")
     
-    # 統計
-    with tab3:
-        st.header("📊 統計情報")
-        
-        # アクティブな大会の統計
-        active_tournament = st.session_state.tournament_management.get_active_tournament()
-        if active_tournament:
-            conn = sqlite3.connect(st.session_state.db_manager.db_path)
-            cursor = conn.cursor()
-            
-            # 申請数
-            cursor.execute('SELECT COUNT(*) FROM player_applications WHERE tournament_id = ?', (active_tournament['id'],))
-            total_applications = cursor.fetchone()[0]
-            
-            # 照合結果
-            cursor.execute('''
-                SELECT 
-                    COUNT(CASE WHEN vr.match_status = 'マッチ' THEN 1 END) as matched,
-                    COUNT(CASE WHEN vr.match_status = '未マッチ' THEN 1 END) as unmatched,
-                    COUNT(CASE WHEN vr.match_status = '複数候補' THEN 1 END) as multiple
-                FROM player_applications pa
-                LEFT JOIN verification_results vr ON pa.id = vr.application_id
-                WHERE pa.tournament_id = ?
-            ''', (active_tournament['id'],))
-            
-            result = cursor.fetchone()
-            matched = result[0] if result[0] else 0
-            unmatched = result[1] if result[1] else 0
-            multiple = result[2] if result[2] else 0
-            
-            conn.close()
-            
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("総申請数", total_applications)
-            with col2:
-                st.metric("マッチ", matched)
-            with col3:
-                st.metric("未マッチ", unmatched)
-            with col4:
-                st.metric("複数候補", multiple)
-        else:
-            st.warning("⚠️ アクティブな大会が設定されていません")
     
     # 印刷
-    with tab4:
+    with tab3:
         st.header("🖨️ 印刷")
         
         # 申請一覧
@@ -933,9 +890,54 @@ def main():
             st.warning("⚠️ アクティブな大会が設定されていません")
     
     # 通知
-    with tab5:
+    with tab4:
         st.header("📧 通知設定")
         st.info("通知機能は開発中です")
+    
+    # 統計（管理者のみ）
+    if admin_mode:
+        with tab5:
+            st.header("📊 統計情報")
+            
+            # アクティブな大会の統計
+            active_tournament = st.session_state.tournament_management.get_active_tournament()
+            if active_tournament:
+                conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                cursor = conn.cursor()
+                
+                # 申請数
+                cursor.execute('SELECT COUNT(*) FROM player_applications WHERE tournament_id = ?', (active_tournament['id'],))
+                total_applications = cursor.fetchone()[0]
+                
+                # 照合結果
+                cursor.execute('''
+                    SELECT 
+                        COUNT(CASE WHEN vr.match_status = 'マッチ' THEN 1 END) as matched,
+                        COUNT(CASE WHEN vr.match_status = '未マッチ' THEN 1 END) as unmatched,
+                        COUNT(CASE WHEN vr.match_status = '複数候補' THEN 1 END) as multiple
+                    FROM player_applications pa
+                    LEFT JOIN verification_results vr ON pa.id = vr.application_id
+                    WHERE pa.tournament_id = ?
+                ''', (active_tournament['id'],))
+                
+                result = cursor.fetchone()
+                matched = result[0] if result[0] else 0
+                unmatched = result[1] if result[1] else 0
+                multiple = result[2] if result[2] else 0
+                
+                conn.close()
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("総申請数", total_applications)
+                with col2:
+                    st.metric("マッチ", matched)
+                with col3:
+                    st.metric("未マッチ", unmatched)
+                with col4:
+                    st.metric("複数候補", multiple)
+            else:
+                st.warning("⚠️ アクティブな大会が設定されていません")
     
     # 管理者機能
     if admin_mode:
