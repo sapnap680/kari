@@ -911,7 +911,7 @@ def main():
                     conn.close()
                     
                     st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
-                        st.info("🔄 次の選手・スタッフの情報を入力してください")
+                    st.info("🔄 次の選手・スタッフの情報を入力してください")
         else:
             # フォーム非表示時の案内
             if active_tournament is None:
@@ -1117,7 +1117,7 @@ def main():
                     tournament_number = st.number_input("第○回", min_value=1, max_value=999, value=101)
                 
                 with col2:
-                new_tournament_year = st.text_input("年度", placeholder="例: 2025")
+                    new_tournament_year = st.text_input("年度", placeholder="例: 2025")
                 
                 # 自動生成された大会名を表示
                 if tournament_type and tournament_number:
