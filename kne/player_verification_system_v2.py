@@ -710,80 +710,80 @@ def main():
         if active_tournament and active_tournament.get('response_accepting'):
             with st.form("player_application_form"):
                 col1, col2 = st.columns(2)
-            
-            with col1:
-                division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
-                university = st.text_input("大学名", placeholder="例: 白鴎大学")
-                role = st.selectbox("役職", ["選手", "スタッフ"])
-                player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
-                birth_date = st.date_input("生年月日（年・月・日）")
-            
-            with col2:
-                photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
                 
-                if role == "選手":
-                    jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
-                else:
-                    jba_file = None
+                with col1:
+                    division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
+                    university = st.text_input("大学名", placeholder="例: 白鴎大学")
+                    role = st.selectbox("役職", ["選手", "スタッフ"])
+                    player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
+                    birth_date = st.date_input("生年月日（年・月・日）")
                 
-                if role == "スタッフ":
-                    staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
-                else:
-                    staff_file = None
+                with col2:
+                    photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
+                    
+                    if role == "選手":
+                        jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
+                    else:
+                        jba_file = None
+                    
+                    if role == "スタッフ":
+                        staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
+                    else:
+                        staff_file = None
+                    
+                    remarks = st.text_area("備考欄", height=100)
+                    email = st.text_input("メールアドレス", placeholder="例: example@university.ac.jp")
+                    phone = st.text_input("電話番号", placeholder="例: 090-1234-5678")
                 
-                remarks = st.text_area("備考欄", height=100)
-                email = st.text_input("メールアドレス", placeholder="例: example@university.ac.jp")
-                phone = st.text_input("電話番号", placeholder="例: 090-1234-5678")
-            
-            submitted = st.form_submit_button("📤 申請を送信", type="primary")
-            
-            if submitted:
-                if not all([university, player_name, birth_date]):
-                    st.error("❌ 必須項目を入力してください")
-                else:
-                    # 申請データを保存
-                    player_data = {
-                        'player_name': player_name,
-                        'birth_date': birth_date.strftime('%Y/%m/%d'),
-                        'university': university,
-                        'division': division,
-                        'role': role,
-                        'email': email,
-                        'phone': phone,
-                        'remarks': remarks,
-                        'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
-                        'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
-                        'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None
-                    }
-                    
-                    # データベースに保存
-                    conn = sqlite3.connect(st.session_state.db_manager.db_path)
-                    cursor = conn.cursor()
-                    
-                    cursor.execute('''
-                        INSERT INTO player_applications 
-                        (tournament_id, player_name, birth_date, university, division, role, email, phone, remarks, photo_path, jba_file_path, staff_file_path)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        active_tournament['id'],
-                        player_data['player_name'],
-                        player_data['birth_date'],
-                        player_data['university'],
-                        player_data['division'],
-                        player_data['role'],
-                        player_data['email'],
-                        player_data['phone'],
-                        player_data['remarks'],
-                        player_data['photo_path'],
-                        player_data['jba_file_path'],
-                        player_data['staff_file_path']
-                    ))
-                    
-                    application_id = cursor.lastrowid
-                    conn.commit()
-                    conn.close()
-                    
-                    st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
+                submitted = st.form_submit_button("📤 申請を送信", type="primary")
+                
+                if submitted:
+                    if not all([university, player_name, birth_date]):
+                        st.error("❌ 必須項目を入力してください")
+                    else:
+                        # 申請データを保存
+                        player_data = {
+                            'player_name': player_name,
+                            'birth_date': birth_date.strftime('%Y/%m/%d'),
+                            'university': university,
+                            'division': division,
+                            'role': role,
+                            'email': email,
+                            'phone': phone,
+                            'remarks': remarks,
+                            'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
+                            'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
+                            'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None
+                        }
+                        
+                        # データベースに保存
+                        conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                        cursor = conn.cursor()
+                        
+                        cursor.execute('''
+                            INSERT INTO player_applications 
+                            (tournament_id, player_name, birth_date, university, division, role, email, phone, remarks, photo_path, jba_file_path, staff_file_path)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            active_tournament['id'],
+                            player_data['player_name'],
+                            player_data['birth_date'],
+                            player_data['university'],
+                            player_data['division'],
+                            player_data['role'],
+                            player_data['email'],
+                            player_data['phone'],
+                            player_data['remarks'],
+                            player_data['photo_path'],
+                            player_data['jba_file_path'],
+                            player_data['staff_file_path']
+                        ))
+                        
+                        application_id = cursor.lastrowid
+                        conn.commit()
+                        conn.close()
+                        
+                        st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
         else:
             # フォーム非表示時の案内
             if active_tournament is None:
