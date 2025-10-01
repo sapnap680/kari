@@ -774,15 +774,13 @@ def main():
                     with col2:
                         photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
                         
+                        # 役職に応じてファイルアップローダーを表示
                         if role == "選手":
                             jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
-                        else:
-                            jba_file = None
-                        
-                        if role == "スタッフ":
-                            staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
-                        else:
                             staff_file = None
+                        else:  # スタッフの場合
+                            jba_file = None
+                            staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
                         
                         remarks = st.text_area("備考欄", height=100)
                     
