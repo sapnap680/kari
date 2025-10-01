@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 """
 仮選手証システム v2.0
@@ -137,7 +139,7 @@ class JBAVerificationSystem:
             if csrf_input:
                 csrf_token = csrf_input.get('value', '')
             
-            # 検索条件を構築（男子チームのみ）
+            # JSON APIを使用した検索
             search_data = {
                 "limit": 100,
                 "offset": 0,
@@ -150,54 +152,44 @@ class JBAVerificationSystem:
                 ]
             }
             
-            # フォームデータとして送信
-            form_data = {
-                'request': json.dumps(search_data, ensure_ascii=False)
-            }
-            
-            search_headers = {
+            form_data = {'request': json.dumps(search_data, ensure_ascii=False)}
+            headers = {
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                 'X-CSRF-Token': csrf_token,
                 'X-Requested-With': 'XMLHttpRequest'
             }
             
-            # 検索リクエストを送信
+            # 検索リクエストを送信（JSON APIとして）
             search_response = self.session.post(
                 search_url, 
                 data=form_data,
-                headers=search_headers
+                headers=headers
             )
             
             if search_response.status_code != 200:
                 st.error("❌ 検索リクエストが失敗しました")
                 return []
             
-            # レスポンスを解析
+            # JSONレスポンスを解析
             try:
-                response_data = search_response.json()
-                
+                data = search_response.json()
                 teams = []
-                if response_data.get('status') == 'success' and 'records' in response_data:
-                    for team in response_data['records']:
-                        # 男子チームのみをフィルター
-                        if team.get('team_gender_id') == '男子':
+                
+                if data.get('status') == 'success' and 'records' in data:
+                    for team_data in data['records']:
+                        # 男子チームのみを対象
+                        if team_data.get('team_gender_id') == '男子':
                             teams.append({
-                                'id': team.get('id', ''),
-                                'team_number': team.get('team_number', ''),
-                                'name': team.get('team_name', ''),
-                                'division': team.get('team_division_internal_id', ''),
-                                'prefecture': team.get('prefecture_id', ''),
-                                'status': team.get('procedure_registration_status_id', ''),
-                                'gender': team.get('team_gender_id', ''),
-                                'classification': team.get('team_classification_id', ''),
-                                'url': f"https://team-jba.jp/organization/15250600/team/{team.get('id', '')}"
+                                'id': team_data.get('id', ''),
+                                'name': team_data.get('team_name', ''),
+                                'url': f"https://team-jba.jp/organization/15250600/team/{team_data.get('id', '')}/detail"
                             })
                 
                 st.success(f"✅ {university_name}の男子チーム: {len(teams)}件見つかりました")
                 return teams
                 
-            except json.JSONDecodeError:
-                st.error("❌ JSONレスポンスの解析に失敗しました")
+            except Exception as e:
+                st.error(f"❌ 検索結果の解析に失敗しました: {str(e)}")
                 return []
             
         except Exception as e:
@@ -205,7 +197,7 @@ class JBAVerificationSystem:
             return []
     
     def get_team_members(self, team_url):
-        """チームのメンバー情報を取得"""
+        """チームのメンバー情報を取得（男子チームのみ）"""
         try:
             st.info(f"📊 チームメンバー情報を取得中...")
             
@@ -218,83 +210,50 @@ class JBAVerificationSystem:
             
             soup = BeautifulSoup(team_page.content, 'html.parser')
             
-            # デバッグ情報を表示
-            st.write(f"**ページタイトル**: {soup.title.string if soup.title else 'No title'}")
-            
-            # チーム名を取得（複数のパターンを試す）
+            # チーム名を取得
             team_name = "Unknown Team"
-            team_name_selectors = [
-                'h1', 'h2', '.team-name', '.team-title', 
-                '[class*="team"]', '[class*="title"]'
-            ]
+            title_element = soup.find('title')
+            if title_element:
+                team_name = title_element.get_text(strip=True)
             
-            for selector in team_name_selectors:
-                element = soup.select_one(selector)
-                if element and element.get_text(strip=True):
-                    team_name = element.get_text(strip=True)
-                    break
-            
-            st.write(f"**チーム名**: {team_name}")
-            
-            # メンバーリストテーブルを探す（複数のパターンを試す）
-            member_table = None
-            table_selectors = [
-                'table[id="team-member-registration-list"]',
-                'table[class*="member"]',
-                'table[class*="player"]',
-                'table[class*="list"]',
-                'table'
-            ]
-            
-            for selector in table_selectors:
-                member_table = soup.select_one(selector)
-                if member_table:
-                    st.write(f"**テーブル発見**: {selector}")
-                    break
-            
+            # メンバー情報を抽出（男子チームのメンバーテーブルを特定）
             members = []
+            tables = soup.find_all('table')
+            
+            # 男子チームのメンバーテーブルを探す（3列のテーブルを探す）
+            member_table = None
+            for i, table in enumerate(tables):
+                rows = table.find_all('tr')
+                if len(rows) > 10:  # メンバーテーブルは通常10行以上
+                    # 最初の行に「メンバーID / 氏名 / 生年月日」があるかチェック
+                    first_row_cells = rows[0].find_all(['td', 'th'])
+                    if len(first_row_cells) >= 3:
+                        first_cell = first_row_cells[0].get_text(strip=True)
+                        second_cell = first_row_cells[1].get_text(strip=True)
+                        third_cell = first_row_cells[2].get_text(strip=True)
+                        if "メンバーID" in first_cell and "氏名" in second_cell and "生年月日" in third_cell:
+                            member_table = table
+                            break
             
             if member_table:
-                rows = member_table.find('tbody')
-                if rows:
-                    rows = rows.find_all('tr')
-                else:
-                    rows = member_table.find_all('tr')
-                
-                st.write(f"**テーブル行数**: {len(rows)}")
-                
-                for i, row in enumerate(rows):
+                rows = member_table.find_all('tr')
+                for row in rows[1:]:  # ヘッダー行をスキップ
                     cells = row.find_all(['td', 'th'])
-                    if len(cells) >= 3:  # 最低3列は必要
-                        member_data = {}
+                    if len(cells) >= 3:
+                        member_id = cells[0].get_text(strip=True)
+                        name = cells[1].get_text(strip=True)
+                        birth_date = cells[2].get_text(strip=True)
                         
-                        # 各セルの内容を取得
-                        for j, cell in enumerate(cells):
-                            cell_text = cell.get_text(strip=True)
-                            if cell_text:
-                                member_data[f"col_{j}"] = cell_text
-                        
-                        # リンクがある場合は取得
-                        links = row.find_all('a')
-                        if links:
-                            member_data['links'] = [link.get('href') for link in links]
-                        
-                        members.append(member_data)
-                        
-                        # 最初の3行だけ詳細表示
-                        if i < 3:
-                            st.write(f"**行 {i+1}**: {member_data}")
-            else:
-                st.warning("❌ メンバーテーブルが見つかりません")
-                # ページの構造をデバッグ表示
-                st.write("**ページ構造**:")
-                for tag in soup.find_all(['table', 'div', 'section'])[:10]:
-                    if tag.get('class') or tag.get('id'):
-                        st.write(f"- {tag.name}: class={tag.get('class')}, id={tag.get('id')}")
+                        # メンバーIDが数字で、名前が空でない場合のみ追加
+                        if member_id.isdigit() and name and name != "氏名":
+                        members.append({
+                            "member_id": member_id,
+                            "name": name,
+                                "birth_date": birth_date
+                        })
             
             return {
                 "team_name": team_name,
-                "team_url": team_url,
                 "members": members
             }
             
@@ -305,13 +264,13 @@ class JBAVerificationSystem:
             return {"team_name": "Error", "team_url": team_url, "members": []}
     
     def verify_player_info(self, player_name, birth_date, university):
-        """個別選手情報の照合"""
+        """個別選手情報の照合（男子チームのみ）"""
         try:
             # 大学のチームを検索
             teams = self.search_teams_by_university(university)
             
             if not teams:
-                return {"status": "not_found", "message": f"{university}のチームが見つかりませんでした"}
+                return {"status": "not_found", "message": f"{university}の男子チームが見つかりませんでした"}
             
             # 各チームのメンバー情報を取得して照合
             for team in teams:
@@ -330,7 +289,7 @@ class JBAVerificationSystem:
                                 "jba_data": member,
                                 "similarity": name_similarity
                             }
-                        elif name_similarity > 0.8:
+                        elif name_similarity > 0.8:  # 名前は一致するが生年月日が異なる場合
                             return {
                                 "status": "name_match_birth_mismatch",
                                 "jba_data": member,
@@ -780,11 +739,11 @@ def main():
         if active_tournament and active_tournament.get('response_accepting'):
             st.subheader("🏫 基本情報")
             with st.form("basic_info_form"):
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
-                    university = st.text_input("大学名", placeholder="例: 白鴎大学")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
+                university = st.text_input("大学名", placeholder="例: 白鴎大学")
                 
                 with col2:
                     is_newcomer = st.radio("新入生ですか？", ["はい", "いいえ"], horizontal=True)
@@ -808,31 +767,31 @@ def main():
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        role = st.selectbox("役職", ["選手", "スタッフ"])
-                        player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
-                        birth_date = st.date_input("生年月日（年・月・日）")
-                    
-                    with col2:
-                        photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
-                        
-                        if role == "選手":
-                            jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
-                        else:
-                            jba_file = None
-                        
-                        if role == "スタッフ":
-                            staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
-                        else:
-                            staff_file = None
-                        
-                        remarks = st.text_area("備考欄", height=100)
-                    
-                    submitted = st.form_submit_button("📤 申請を送信", type="primary")
-                    
-                    if submitted:
+                role = st.selectbox("役職", ["選手", "スタッフ"])
+                player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
+                birth_date = st.date_input("生年月日（年・月・日）")
+            
+            with col2:
+                photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
+                
+                if role == "選手":
+                    jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
+                else:
+                    jba_file = None
+                
+                if role == "スタッフ":
+                    staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
+                else:
+                    staff_file = None
+                
+                remarks = st.text_area("備考欄", height=100)
+            
+            submitted = st.form_submit_button("📤 申請を送信", type="primary")
+            
+            if submitted:
                         if not all([player_name, birth_date]):
-                            st.error("❌ 必須項目を入力してください")
-                        else:
+                    st.error("❌ 必須項目を入力してください")
+                else:
                             # JBAデータベースとの照合
                             st.info("🔍 JBAデータベースと照合中...")
                             verification_result = st.session_state.jba_system.verify_player_info(
@@ -841,32 +800,32 @@ def main():
                                 st.session_state.basic_info['university']
                             )
                         
-                        # 照合結果の表示
-                        if verification_result["status"] == "match":
-                            st.success("✅ JBAデータベースと完全一致しました")
-                        elif verification_result["status"] == "name_match_birth_mismatch":
-                            st.warning(f"⚠️ {verification_result['message']}")
-                        elif verification_result["status"] == "birth_match_name_mismatch":
-                            st.warning(f"⚠️ {verification_result['message']}")
-                        elif verification_result["status"] == "not_found":
-                            st.error(f"❌ {verification_result['message']}")
-                        else:
-                            st.error(f"❌ {verification_result['message']}")
-                        
+                            # 照合結果の表示
+                            if verification_result["status"] == "match":
+                                st.success("✅ JBAデータベースと完全一致しました")
+                            elif verification_result["status"] == "name_match_birth_mismatch":
+                                st.warning(f"⚠️ {verification_result['message']}")
+                            elif verification_result["status"] == "birth_match_name_mismatch":
+                                st.warning(f"⚠️ {verification_result['message']}")
+                            elif verification_result["status"] == "not_found":
+                                st.error(f"❌ {verification_result['message']}")
+                            else:
+                                st.error(f"❌ {verification_result['message']}")
+                            
                     # 申請データを保存
                     player_data = {
                         'player_name': player_name,
                         'birth_date': birth_date.strftime('%Y/%m/%d'),
-                            'university': st.session_state.basic_info['university'],
-                            'division': st.session_state.basic_info['division'],
+                                'university': st.session_state.basic_info['university'],
+                                'division': st.session_state.basic_info['division'],
                         'role': role,
-                            'is_newcomer': st.session_state.basic_info['is_newcomer'],
+                                'is_newcomer': st.session_state.basic_info['is_newcomer'],
                         'remarks': remarks,
                         'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
                         'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
-                            'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None,
-                            'verification_result': verification_result["status"],
-                            'jba_match_data': str(verification_result.get("jba_data", {}))
+                                'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None,
+                                'verification_result': verification_result["status"],
+                                'jba_match_data': str(verification_result.get("jba_data", {}))
                     }
                     
                     # データベースに保存
@@ -875,7 +834,7 @@ def main():
                     
                     cursor.execute('''
                         INSERT INTO player_applications 
-                            (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
+                                    (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         active_tournament['id'],
@@ -887,31 +846,31 @@ def main():
                         player_data['remarks'],
                         player_data['photo_path'],
                         player_data['jba_file_path'],
-                            player_data['staff_file_path'],
-                            player_data['verification_result'],
-                            player_data['jba_match_data']
+                                player_data['staff_file_path'],
+                                player_data['verification_result'],
+                                player_data['jba_match_data']
                     ))
                     
                     application_id = cursor.lastrowid
-                    
-                    # 照合結果も保存
-                    cursor.execute('''
-                        INSERT INTO verification_results 
-                        (application_id, match_status, jba_name, jba_birth_date, similarity_score)
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (
-                        application_id,
-                        verification_result["status"],
-                        verification_result.get("jba_data", {}).get("name", ""),
-                        verification_result.get("jba_data", {}).get("birth_date", ""),
-                        verification_result.get("similarity", 0.0)
-                    ))
-                        
+                            
+                            # 照合結果も保存
+                            cursor.execute('''
+                                INSERT INTO verification_results 
+                                (application_id, match_status, jba_name, jba_birth_date, similarity_score)
+                                VALUES (?, ?, ?, ?, ?)
+                            ''', (
+                                application_id,
+                                verification_result["status"],
+                                verification_result.get("jba_data", {}).get("name", ""),
+                                verification_result.get("jba_data", {}).get("birth_date", ""),
+                                verification_result.get("similarity", 0.0)
+                            ))
+                            
                     conn.commit()
                     conn.close()
                     
                     st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
-                    st.info("🔄 次の選手・スタッフの情報を入力してください")
+                            st.info("🔄 次の選手・スタッフの情報を入力してください")
         else:
             # フォーム非表示時の案内
             if active_tournament is None:
@@ -1117,7 +1076,7 @@ def main():
                     tournament_number = st.number_input("第○回", min_value=1, max_value=999, value=101)
                 
                 with col2:
-                    new_tournament_year = st.text_input("年度", placeholder="例: 2025")
+                new_tournament_year = st.text_input("年度", placeholder="例: 2025")
                 
                 # 自動生成された大会名を表示
                 if tournament_type and tournament_number:
