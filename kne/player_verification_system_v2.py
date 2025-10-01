@@ -660,8 +660,25 @@ def main():
     if 'jba_system' not in st.session_state:
         st.session_state.jba_system = JBAVerificationSystem()
     
-    # 管理者モード切り替え
-    admin_mode = st.sidebar.checkbox("🎛️ 管理者機能", value=False)
+    # 管理者ログイン（パスワード: 0503）
+    with st.sidebar.expander("🔐 管理者ログイン", expanded=False):
+        if 'is_admin' not in st.session_state:
+            st.session_state.is_admin = False
+        if not st.session_state.is_admin:
+            admin_password_input = st.text_input("パスワード", type="password", key="admin_password_input")
+            if st.button("ログイン"):
+                if admin_password_input == "0503":
+                    st.session_state.is_admin = True
+                    st.success("ログインしました")
+                else:
+                    st.error("パスワードが違います")
+        else:
+            st.success("管理者としてログイン中")
+            if st.button("ログアウト"):
+                st.session_state.is_admin = False
+                st.session_state.pop("admin_password_input", None)
+
+    admin_mode = st.session_state.is_admin
     
     if admin_mode:
         # 管理者タブ
