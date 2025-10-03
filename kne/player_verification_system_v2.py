@@ -1764,14 +1764,11 @@ def main():
             st.subheader("🏫 基本情報")
             with st.form("basic_info_form"):
                 col1, col2 = st.columns(2)
-            
-            with col1:
-                division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
-                university = st.text_input("大学名", placeholder="例: 白鴎大学")
-                
+                with col1:
+                    division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
+                    university = st.text_input("大学名", placeholder="例: 白鴎大学")
                 with col2:
                     is_newcomer = st.radio("新入生ですか？", ["はい", "いいえ"], horizontal=True)
-                
                 basic_submitted = st.form_submit_button("📝 基本情報を設定", type="primary")
             
             if basic_submitted and university:
