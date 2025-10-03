@@ -1085,7 +1085,7 @@ def render_application_form():
                                 staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}")
                                 jba_file = None
                         
-                        submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary")
+                        submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary", key=f"submit_user_{i}")
                         
                         if submitted and name:
                             # 顔写真のbase64エンコード
@@ -1816,7 +1816,7 @@ def main():
                             
                             remarks = st.text_area("備考欄", height=100, key=f"remarks_{i}")
                         
-                        submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary", key=f"submit_{i}")
+                        submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary", key=f"submit_main_{i}")
                         
                         if submitted:
                             if not all([player_name, birth_date]):
