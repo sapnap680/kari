@@ -41,6 +41,11 @@ from email.mime.multipart import MIMEMultipart
 import schedule
 import time
 import threading
+import base64
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+import zipfile
+from jinja2 import Template
 
 # ページ設定
 st.set_page_config(
@@ -48,6 +53,288 @@ st.set_page_config(
     page_icon="🏀",
     layout="wide"
 )
+
+class CardGenerator:
+    """仮選手証生成クラス"""
+    
+    def __init__(self):
+        self.html_template = """
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>仮選手証・スタッフ証（カード単体）</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      border: 4px solid #222;
+      background: {{ background_color }};
+      width: calc(110mm - 8px);
+      height: calc(70mm - 8px);
+      box-sizing: border-box;
+      position: relative;
+      display: flex;
+      font-family: "Meiryo", "Segoe UI", sans-serif;
+      border-radius: 0;
+    }
+    .text-area {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: flex-start;
+      height: 100%;
+      width: calc(100% - 35mm);
+      font-size: 0.65em;
+      line-height: 1.1;
+      overflow: visible;
+      position: relative;
+      padding: 6px 12px;
+    }
+    .title {
+      font-size: 1.45em;
+      font-weight: bold;
+      color: #222;
+      margin-bottom: 2px;
+      letter-spacing: 0.5px;
+      white-space: pre-line;
+      line-height: 1.05;
+    }
+    .subtitle76 {
+      font-size: 1.45em;
+      font-weight: bold;
+      color: #222;
+      margin-bottom: 10px; 
+      margin-left: 50px;
+      letter-spacing: 0.5px;
+      line-height: 1.05;
+      padding-left: 2.6em;
+    }
+    .subtitle {
+      font-size: 1.4em;
+      margin-bottom: 10px;
+      margin-left: 9px;
+      color: #222;
+      font-weight: bold;
+      letter-spacing: 1px;
+      padding-left: 2em;
+      line-height: 1.1;
+    }
+    .vertical-flex {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .name-row {
+      font-size: 1.5em;
+      margin-top: 20px;
+      color: #222;
+      line-height: 1.1;
+      text-align: left;
+      width: 100%;
+    }
+    .univ {
+      font-size: 1.5em;
+      margin-top: 18px;
+      margin-left: 200px;
+      color: #222;
+      font-weight: 500;
+      letter-spacing: 2px;
+      text-align: left;
+      width: 100%;
+    }
+    .hr-name, .hr-univ {
+      border: none;
+      border-bottom: 2px solid #222;
+      margin: 4px 0 0 0;
+      width: 100%;
+      height: 0;
+      background: transparent;
+    }
+    .birth-row {
+      font-size: 1.3em;
+      margin-bottom: 0px;
+      color: #222;
+      line-height: 1.1;
+      text-align: left;
+      width: 100%;
+    }
+    .valid-row {
+      font-size: 1.6em;
+      margin-top: 8px;
+      margin-bottom: 0px;
+      color: #222;
+      line-height: 1.1;
+      text-align: left;
+      width: 100%;
+    }
+    .note {
+      font-size: 0.7em;
+      color: #222;
+      margin-top: 2px;
+      margin-bottom: 1px;
+      line-height: 1.05;
+      text-align: left;
+      width: 100%;
+    }
+    .kyokai {
+      font-size: 0.5em;
+      color: #222;
+      margin-top: 20px;
+      margin-left: 115px;
+      letter-spacing: 0.5px;
+      width: 100%;
+      text-align: right;
+      line-height: 1.05;
+    }
+    .photo-frame {
+      border: 2px dashed #000;
+      width: 40mm;
+      height: 50mm;
+      position: absolute;
+      right: 0px;
+      top: 25px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #222;
+      font-size: 0.65em;
+      letter-spacing: 1px;
+      z-index: 10;
+    }
+    .photo-below {
+      position: absolute;
+      right: 0;
+      top: 60mm;
+      width: 40mm;
+      text-align: center;
+      font-size: 0.9em;
+      color: #222;
+      z-index: 20;
+      background: transparent;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="text-area">
+      <div class="title">{{ tournament_name }}</div>
+      <div class="subtitle76">{{ tournament_type }}</div>
+      <div class="subtitle">仮選手証・スタッフ証</div>
+      <div class="vertical-flex">
+        <div>
+          <div class="name-row">氏名: {{ player_name }}</div>
+          <hr class="hr-name">
+        </div>
+        <div>
+          <div class="univ">大学: {{ university }}</div>
+          <hr class="hr-univ">
+        </div>
+      </div>
+      <div class="birth-row">生年月日: {{ birth_date }}</div>
+      <div class="valid-row">※{{ tournament_name }}のみ有効</div>
+      <div class="note"></div>
+      <div class="kyokai">一般社団法人関東大学バスケットボール連盟</div>
+    </div>
+    <div class="photo-frame">
+      {% if photo_data %}
+        <img src="data:image/jpeg;base64,{{ photo_data }}" style="width: 100%; height: 100%; object-fit: cover;" />
+      {% else %}
+        写真
+      {% endif %}
+    </div>
+    <div class="photo-below"></div>
+  </div>
+</body>
+</html>
+        """
+    
+    def get_tournament_color(self, tournament_type):
+        """大会種別に応じた背景色を取得"""
+        color_map = {
+            'リーグ戦': '#d4a574',  # 黄土色
+            '選手権大会': '#c2e8c2',  # 緑色（デフォルト）
+            '新人戦': '#ffb6c1'  # ピンク色
+        }
+        return color_map.get(tournament_type, '#c2e8c2')
+    
+    def generate_card_html(self, player_data, tournament_name, tournament_type):
+        """仮選手証のHTMLを生成"""
+        template = Template(self.html_template)
+        
+        # 顔写真のbase64エンコード
+        photo_data = None
+        if player_data.get('photo_data'):
+            photo_data = player_data['photo_data']
+        
+        # 大会種別に応じた背景色を取得
+        background_color = self.get_tournament_color(tournament_type)
+        
+        html = template.render(
+            tournament_name=tournament_name,
+            tournament_type=tournament_type,
+            player_name=player_data.get('name', ''),
+            university=player_data.get('university', ''),
+            birth_date=player_data.get('birth_date', ''),
+            photo_data=photo_data,
+            background_color=background_color
+        )
+        return html
+    
+    def generate_card_image(self, player_data, tournament_name, tournament_type):
+        """仮選手証を画像として生成"""
+        # HTMLを画像に変換する処理（簡易版）
+        # 実際の実装では、wkhtmltopdfやPlaywright等を使用
+        html = self.generate_card_html(player_data, tournament_name, tournament_type)
+        
+        # 大会種別に応じた背景色を取得
+        background_color = self.get_tournament_color(tournament_type)
+        
+        # 簡易的な画像生成（実際の実装では適切なHTML to Image変換を使用）
+        width, height = 1100, 700  # 110mm x 70mm in pixels (100 DPI)
+        img = Image.new('RGB', (width, height), background_color)
+        draw = ImageDraw.Draw(img)
+        
+        # 枠線
+        draw.rectangle([0, 0, width-1, height-1], outline='#222', width=4)
+        
+        # テキスト描画（簡易版）
+        try:
+            font_large = ImageFont.truetype("arial.ttf", 24)
+            font_medium = ImageFont.truetype("arial.ttf", 18)
+            font_small = ImageFont.truetype("arial.ttf", 14)
+        except:
+            font_large = ImageFont.load_default()
+            font_medium = ImageFont.load_default()
+            font_small = ImageFont.load_default()
+        
+        # タイトル
+        draw.text((50, 30), tournament_name, fill='#222', font=font_large)
+        draw.text((50, 60), tournament_type, fill='#222', font=font_large)
+        draw.text((50, 90), "仮選手証・スタッフ証", fill='#222', font=font_medium)
+        
+        # 選手情報
+        draw.text((50, 150), f"氏名: {player_data.get('name', '')}", fill='#222', font=font_medium)
+        draw.text((50, 200), f"大学: {player_data.get('university', '')}", fill='#222', font=font_medium)
+        draw.text((50, 250), f"生年月日: {player_data.get('birth_date', '')}", fill='#222', font=font_small)
+        
+        # 写真エリア
+        photo_x = width - 400
+        photo_y = 100
+        draw.rectangle([photo_x, photo_y, photo_x + 350, photo_y + 400], outline='#000', width=2, fill='#fff')
+        draw.text((photo_x + 10, photo_y + 10), "写真", fill='#222', font=font_small)
+        
+        return img
 
 class JBAVerificationSystem:
     """JBA検証システム（requests + BeautifulSoupベース）"""
@@ -264,10 +551,19 @@ class JBAVerificationSystem:
             return {"team_name": "Error", "team_url": team_url, "members": []}
     
     def normalize_date_format(self, date_str):
-        """日付フォーマットを統一（YYYY/M/D → YYYY/M/D）"""
+        """日付フォーマットを統一（JBAの「2004年5月31日」形式に対応）"""
         try:
             if not date_str:
                 return ""
+            
+            # JBAの「2004年5月31日」形式を処理
+            if "年" in date_str and "月" in date_str and "日" in date_str:
+                # 「2004年5月31日」→「2004/5/31」に変換
+                import re
+                match = re.match(r'(\d{4})年(\d{1,2})月(\d{1,2})日', date_str)
+                if match:
+                    year, month, day = match.groups()
+                    return f"{year}/{int(month)}/{int(day)}"
             
             # 既に統一された形式の場合はそのまま返す
             if "/" in date_str and len(date_str.split("/")) == 3:
@@ -685,63 +981,708 @@ class AdminDashboard:
         conn.commit()
         conn.close()
 
+def admin_page():
+    """管理者ページ"""
+    # 管理者ログイン確認
+    if not st.session_state.get('admin_logged_in', False):
+        st.error("管理者権限が必要です。")
+        return
+    
+    # 管理者用タブ
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "📝 申請フォーム", "🔍 照合結果", "🖨️ 印刷", "📧 通知", "📊 統計", "🎛️ 管理者"
+    ])
+    
+    # 申請フォーム
+    with tab1:
+        render_application_form()
+    
+    # 照合結果
+    with tab2:
+        render_verification_results()
+    
+    # 印刷
+    with tab3:
+        render_print_page()
+    
+    # 通知
+    with tab4:
+        render_notification_page()
+    
+    # 統計
+    with tab5:
+        render_statistics_page()
+    
+    # 管理者
+    with tab6:
+        render_admin_dashboard()
+
+def render_application_form():
+    """申請フォームのレンダリング"""
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.header("📝 仮選手証・仮スタッフ証申請フォーム")
+    st.markdown("**関東大学バスケットボール連盟** の公式申請システムです。")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # アクティブな大会情報を表示
+    active_tournament = st.session_state.tournament_management.get_active_tournament()
+    if active_tournament:
+        st.info(f"**大会名**: {active_tournament['tournament_name']} ({active_tournament['tournament_year']}年度)")
+        if active_tournament['response_accepting']:
+            st.success("✅ 回答受付中")
+        else:
+            st.error("❌ 回答受付停止中")
+    else:
+        st.warning("⚠️ アクティブな大会が設定されていません（管理者は“🎛️ 管理者”タブから大会を作成してください）")
+    
+    # 申請フォーム（アクティブ大会かつ受付中のときのみ表示）
+    if active_tournament and active_tournament.get('response_accepting'):
+        st.subheader("🏫 基本情報")
+        with st.form("basic_info_form"):
+            col1, col2 = st.columns(2)
+        
+        with col1:
+            division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
+            university = st.text_input("大学名", placeholder="例: 白鴎大学")
+            
+            with col2:
+                is_newcomer = st.radio("新入生ですか？", ["はい", "いいえ"], horizontal=True)
+            
+            basic_submitted = st.form_submit_button("📝 基本情報を設定", type="primary")
+        
+        if basic_submitted and university:
+            st.session_state.basic_info = {
+                'division': division,
+                'university': university,
+                'is_newcomer': is_newcomer == "はい"
+            }
+            st.success("✅ 基本情報が設定されました")
+        
+        # 基本情報が設定されている場合のみ申請フォームを表示
+        if st.session_state.get('basic_info'):
+            st.subheader("👥 申請者情報")
+            num_applicants = st.number_input("申請者数", min_value=1, max_value=10, value=1)
+            
+            # 申請者リストの初期化
+            if 'applicant_list' not in st.session_state:
+                st.session_state.applicant_list = []
+            
+            # 申請者フォーム
+            for i in range(num_applicants):
+                with st.expander(f"申請者 {i+1}", expanded=True):
+                    with st.form(f"applicant_form_{i}"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            role = st.selectbox("役職", ["選手", "スタッフ"], key=f"role_{i}")
+                            name = st.text_input("氏名", key=f"name_{i}")
+                            birth_date = st.date_input("生年月日", value=datetime(2000, 1, 1), key=f"birth_{i}")
+                            
+                        with col2:
+                            photo = st.file_uploader("顔写真", type=['jpg', 'jpeg', 'png'], key=f"photo_{i}")
+                            
+                            if role == "選手":
+                                jba_file = st.file_uploader("JBA登録用紙", type=['pdf'], key=f"jba_{i}")
+                                staff_file = None
+                            else:
+                                staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}")
+                                jba_file = None
+                        
+                        submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary")
+                        
+                        if submitted and name:
+                            # 顔写真のbase64エンコード
+                            photo_data = None
+                            if photo:
+                                photo_bytes = photo.read()
+                                photo_data = base64.b64encode(photo_bytes).decode('utf-8')
+                            
+                            applicant_data = {
+                                'role': role,
+                                'name': name,
+                                'birth_date': birth_date.strftime('%Y/%m/%d'),
+                                'photo_data': photo_data,
+                                'jba_file': jba_file,
+                                'staff_file': staff_file,
+                                'division': st.session_state.basic_info['division'],
+                                'university': st.session_state.basic_info['university'],
+                                'is_newcomer': st.session_state.basic_info['is_newcomer']
+                            }
+                            
+                            st.session_state.applicant_list.append(applicant_data)
+                            st.success(f"✅ 申請者 {i+1} が追加されました")
+            
+            # 一括申請送信
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📤 一括申請送信", type="primary"):
+                    if st.session_state.applicant_list:
+                        # データベースに保存
+                        conn = sqlite3.connect('player_applications.db')
+                        cursor = conn.cursor()
+                        
+                        for applicant in st.session_state.applicant_list:
+                            cursor.execute('''
+                                INSERT INTO player_applications 
+                                (tournament_id, role, name, birth_date, photo_data, division, university, is_newcomer, status, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (
+                                active_tournament['id'],
+                                applicant['role'],
+                                applicant['name'],
+                                applicant['birth_date'],
+                                applicant['photo_data'],
+                                applicant['division'],
+                                applicant['university'],
+                                applicant['is_newcomer'],
+                                'pending',
+                                datetime.now()
+                            ))
+                        
+                        conn.commit()
+                        conn.close()
+                        
+                        st.success(f"✅ {len(st.session_state.applicant_list)}名の申請が送信されました")
+                        st.session_state.applicant_list = []
+                    else:
+                        st.error("❌ 申請者がいません")
+            
+            with col2:
+                if st.button("🗑️ リストをクリア"):
+                    st.session_state.applicant_list = []
+                    st.success("✅ 申請者リストをクリアしました")
+    else:
+        st.info("申請フォームは、アクティブな大会が設定され、回答受付中の時のみ表示されます。")
+
+def render_verification_results():
+    """照合結果のレンダリング"""
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.header("🔍 照合結果")
+    st.markdown("JBAデータベースとの照合結果を確認・管理できます。")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # アクティブな大会の申請一覧
+    active_tournament = st.session_state.tournament_management.get_active_tournament()
+    if not active_tournament:
+        st.warning("アクティブな大会が設定されていません。")
+        return
+    
+    conn = sqlite3.connect('player_applications.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, role, name, birth_date, division, university, status, created_at
+        FROM player_applications 
+        WHERE tournament_id = ?
+        ORDER BY created_at DESC
+    ''', (active_tournament['id'],))
+    
+    applications = cursor.fetchall()
+    conn.close()
+    
+    if not applications:
+        st.info("申請がありません。")
+        return
+    
+    for app in applications:
+        app_id, role, name, birth_date, division, university, status, created_at = app
+        
+        with st.expander(f"{name} ({role}) - {status}", expanded=False):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write(f"**氏名**: {name}")
+                st.write(f"**役職**: {role}")
+                st.write(f"**生年月日**: {birth_date}")
+                st.write(f"**部**: {division}")
+                st.write(f"**大学**: {university}")
+                st.write(f"**申請日時**: {created_at}")
+            
+            with col2:
+                if st.button(f"🔍 照合実行", key=f"verify_{app_id}"):
+                    with st.spinner("JBAデータベースと照合中..."):
+                        # JBAログイン
+                        jba_system = JBAVerificationSystem()
+                        if not jba_system.login("your_email@example.com", "your_password"):
+                            st.error("JBAログインに失敗しました。")
+                            continue
+                        
+                        # 照合実行
+                        result = jba_system.verify_player_info(name, birth_date, university)
+                        
+                        # 結果をデータベースに保存
+                        conn = sqlite3.connect('player_applications.db')
+                        cursor = conn.cursor()
+                        
+                        cursor.execute('''
+                            UPDATE player_applications 
+                            SET status = ?, verification_result = ?, verified_at = ?
+                            WHERE id = ?
+                        ''', (result['status'], json.dumps(result), datetime.now(), app_id))
+                        
+                        conn.commit()
+                        conn.close()
+                        
+                        st.success(f"照合完了: {result['status']}")
+                        if result.get('message'):
+                            st.info(result['message'])
+
+def render_print_page():
+    """印刷ページのレンダリング"""
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.header("🖨️ 仮選手証印刷")
+    st.markdown("仮選手証をPDF/JPG形式で生成・ダウンロードできます。")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # アクティブな大会の申請一覧
+    active_tournament = st.session_state.tournament_management.get_active_tournament()
+    if not active_tournament:
+        st.warning("アクティブな大会が設定されていません。")
+        return
+    
+    conn = sqlite3.connect('player_applications.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, role, name, birth_date, division, university, photo_data, status
+        FROM player_applications 
+        WHERE tournament_id = ? AND status = 'match'
+        ORDER BY university, name
+    ''', (active_tournament['id'],))
+    
+    applications = cursor.fetchall()
+    conn.close()
+    
+    if not applications:
+        st.info("照合済みの申請がありません。")
+        return
+    
+    # チームごとにグループ化
+    teams = {}
+    for app in applications:
+        app_id, role, name, birth_date, division, university, photo_data, status = app
+        if university not in teams:
+            teams[university] = []
+        teams[university].append({
+            'id': app_id, 'role': role, 'name': name, 'birth_date': birth_date,
+            'division': division, 'photo_data': photo_data, 'status': status
+        })
+    
+    # チーム選択
+    selected_team = st.selectbox("チームを選択", list(teams.keys()))
+    
+    if selected_team:
+        team_applications = teams[selected_team]
+        
+        # 個別印刷
+        st.subheader("個別印刷")
+        for app in team_applications:
+            col1, col2, col3 = st.columns([3, 1, 1])
+            
+            with col1:
+                st.write(f"**{app['name']}** ({app['role']}) - {app['division']}")
+            
+            with col2:
+                if st.button(f"🖨️ PDF", key=f"pdf_{app['id']}"):
+                    # 仮選手証生成
+                    card_generator = CardGenerator()
+                    player_data = {
+                        'name': app['name'],
+                        'university': selected_team,
+                        'birth_date': app['birth_date'],
+                        'photo_data': app['photo_data']
+                    }
+                    
+                    # HTML生成
+                    html = card_generator.generate_card_html(
+                        player_data, 
+                        active_tournament['tournament_name'],
+                        active_tournament['tournament_type']
+                    )
+                    
+                    # PDF生成（簡易版）
+                    st.download_button(
+                        label="📥 PDFダウンロード",
+                        data=html.encode('utf-8'),
+                        file_name=f"{app['name']}_仮選手証.html",
+                        mime="text/html"
+                    )
+            
+            with col3:
+                if st.button(f"🖼️ JPG", key=f"jpg_{app['id']}"):
+                    # 仮選手証画像生成
+                    card_generator = CardGenerator()
+                    player_data = {
+                        'name': app['name'],
+                        'university': selected_team,
+                        'birth_date': app['birth_date'],
+                        'photo_data': app['photo_data']
+                    }
+                    
+                    img = card_generator.generate_card_image(
+                        player_data,
+                        active_tournament['tournament_name'],
+                        active_tournament['tournament_type']
+                    )
+                    
+                    # 画像をBytesIOに保存
+                    img_buffer = BytesIO()
+                    img.save(img_buffer, format='JPEG')
+                    img_buffer.seek(0)
+                    
+                    st.download_button(
+                        label="📥 JPGダウンロード",
+                        data=img_buffer.getvalue(),
+                        file_name=f"{app['name']}_仮選手証.jpg",
+                        mime="image/jpeg"
+                    )
+        
+        # チーム一括印刷
+        st.subheader("チーム一括印刷")
+        if st.button(f"📦 {selected_team} チーム一括ZIP", type="primary"):
+            # ZIPファイル生成
+            zip_buffer = BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+                for app in team_applications:
+                    # 仮選手証生成
+                    card_generator = CardGenerator()
+                    player_data = {
+                        'name': app['name'],
+                        'university': selected_team,
+                        'birth_date': app['birth_date'],
+                        'photo_data': app['photo_data']
+                    }
+                    
+                    # HTML生成
+                    html = card_generator.generate_card_html(
+                        player_data,
+                        active_tournament['tournament_name'],
+                        active_tournament['tournament_type']
+                    )
+                    
+                    # ZIPに追加
+                    zip_file.writestr(f"{app['name']}_仮選手証.html", html)
+            
+            zip_buffer.seek(0)
+            
+            st.download_button(
+                label=f"📥 {selected_team} チーム一括ZIP",
+                data=zip_buffer.getvalue(),
+                file_name=f"{selected_team}_仮選手証.zip",
+                mime="application/zip"
+            )
+
+def render_notification_page():
+    """通知ページのレンダリング"""
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.header("📧 通知管理")
+    st.markdown("申請者への通知を管理できます。")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.info("通知機能は今後実装予定です。")
+
+def render_statistics_page():
+    """統計ページのレンダリング"""
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.header("📊 統計情報")
+    st.markdown("申請状況の統計を表示します。")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # アクティブな大会の統計
+    active_tournament = st.session_state.tournament_management.get_active_tournament()
+    if not active_tournament:
+        st.warning("アクティブな大会が設定されていません。")
+        return
+    
+    conn = sqlite3.connect('player_applications.db')
+    cursor = conn.cursor()
+    
+    # 申請数統計
+    cursor.execute('''
+        SELECT role, status, COUNT(*) as count
+        FROM player_applications 
+        WHERE tournament_id = ?
+        GROUP BY role, status
+    ''', (active_tournament['id'],))
+    
+    stats = cursor.fetchall()
+    conn.close()
+    
+    if stats:
+        df = pd.DataFrame(stats, columns=['役職', 'ステータス', '件数'])
+        st.dataframe(df, use_container_width=True)
+        
+        # グラフ表示
+        st.bar_chart(df.set_index(['役職', 'ステータス'])['件数'])
+    else:
+        st.info("統計データがありません。")
+
+def render_admin_dashboard():
+    """管理者ダッシュボードのレンダリング"""
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.header("🎛️ 管理者ダッシュボード")
+    st.markdown("大会の作成・管理を行います。")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 大会作成
+    st.subheader("🏆 新規大会作成")
+    with st.form("tournament_creation_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            tournament_type = st.selectbox("大会種別", ["選手権大会", "新人戦", "リーグ戦"])
+            tournament_number = st.number_input("大会回数", min_value=1, max_value=999, value=1)
+        
+        with col2:
+            tournament_year = st.number_input("年度", min_value=2020, max_value=2030, value=2025)
+            response_accepting = st.checkbox("回答受付中", value=True)
+        
+        # 自動生成される大会名
+        tournament_name = f"第{tournament_number}回関東大学バスケットボール{tournament_type}"
+        st.info(f"**大会名**: {tournament_name}")
+        
+        submitted = st.form_submit_button("🏆 大会を作成", type="primary")
+        
+        if submitted:
+            tournament_id = st.session_state.tournament_management.create_tournament(
+                tournament_name, tournament_type, tournament_year, response_accepting
+            )
+            st.success(f"✅ 大会が作成されました (ID: {tournament_id})")
+    
+    # アクティブ大会管理
+    st.subheader("🎯 アクティブ大会管理")
+    active_tournament = st.session_state.tournament_management.get_active_tournament()
+    
+    if active_tournament:
+        st.info(f"**現在のアクティブ大会**: {active_tournament['tournament_name']}")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🔄 回答受付を切り替え"):
+                new_status = not active_tournament['response_accepting']
+                st.session_state.tournament_management.update_tournament(
+                    active_tournament['id'], response_accepting=new_status
+                )
+                st.success(f"✅ 回答受付を{'開始' if new_status else '停止'}しました")
+        
+        with col2:
+            if st.button("❌ 大会を非アクティブ化"):
+                st.session_state.tournament_management.deactivate_tournament(active_tournament['id'])
+                st.success("✅ 大会を非アクティブ化しました")
+    else:
+        st.warning("アクティブな大会がありません。")
+
+def user_page():
+    """一般ユーザーページ"""
+    # 一般ユーザー用タブ（申請フォームのみ）
+    tab1 = st.tabs(["📝 申請フォーム"])[0]
+    
+    with tab1:
+        render_application_form()
+
 def main():
     """メイン関数"""
-    # カスタムCSS
+    # カスタムCSS（ネイビー・ブルー・白黒統一）
     st.markdown("""
     <style>
+    /* カラーパレット */
+    :root {
+        --navy: #1e293b;
+        --blue: #3b82f6;
+        --white: #ffffff;
+        --dark-gray: #374151;
+        --light-gray: #f8fafc;
+        --border-gray: #e5e7eb;
+    }
+    
+    /* メインコンテナ */
+    .main-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+    }
+    
+    /* ヘッダー */
     .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
+        background: var(--navy);
+        padding: 3rem 2rem;
+        border-radius: 15px;
         margin-bottom: 2rem;
-        color: white;
+        color: var(--white);
         text-align: center;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 8px 32px rgba(30, 41, 59, 0.3);
     }
     .main-header h1 {
         margin: 0;
-        font-size: 2.5rem;
-        font-weight: 700;
+        font-size: 3rem;
+        font-weight: 800;
+        color: var(--white);
     }
     .main-header p {
-        margin: 0.5rem 0 0 0;
-        font-size: 1.1rem;
+        margin: 1rem 0 0 0;
+        font-size: 1.3rem;
+        color: var(--white);
         opacity: 0.9;
     }
+    
+    /* カード */
     .card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        margin-bottom: 1rem;
-        border-left: 4px solid #667eea;
+        background: var(--white);
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(30, 41, 59, 0.1);
+        margin-bottom: 1.5rem;
+        border: 1px solid var(--border-gray);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
     }
+    .card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--blue);
+    }
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(30, 41, 59, 0.15);
+    }
+    
+    /* ステータスバッジ */
     .status-badge {
         display: inline-block;
-        padding: 0.25rem 0.75rem;
+        padding: 0.5rem 1rem;
         border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
+        font-size: 0.85rem;
+        font-weight: 700;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     .status-pending {
-        background-color: #fff3cd;
-        color: #856404;
+        background: var(--navy);
+        color: var(--white);
     }
     .status-match {
-        background-color: #d4edda;
-        color: #155724;
+        background: var(--blue);
+        color: var(--white);
     }
     .status-error {
-        background-color: #f8d7da;
-        color: #721c24;
+        background: var(--dark-gray);
+        color: var(--white);
     }
+    
+    /* サイドバー */
     .sidebar-content {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
+        background: var(--light-gray);
+        padding: 1.5rem;
+        border-radius: 12px;
         margin-bottom: 1rem;
+        border: 1px solid var(--border-gray);
+        box-shadow: 0 2px 8px rgba(30, 41, 59, 0.05);
+    }
+    
+    /* フォーム */
+    .stForm {
+        background: var(--white);
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(30, 41, 59, 0.05);
+        border: 1px solid var(--border-gray);
+    }
+    
+    /* ボタン */
+    .stButton > button {
+        background: var(--blue);
+        color: var(--white);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+    }
+    .stButton > button:hover {
+        background: var(--navy);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    /* タブ */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background: var(--light-gray);
+        color: var(--dark-gray);
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .stTabs [aria-selected="true"] {
+        background: var(--blue);
+        color: var(--white);
+    }
+    
+    /* 入力フィールド */
+    .stTextInput > div > div > input,
+    .stSelectbox > div > div > select,
+    .stTextArea > div > div > textarea {
+        border-radius: 8px;
+        border: 2px solid var(--border-gray);
+        color: var(--dark-gray);
+        transition: all 0.3s ease;
+    }
+    .stTextInput > div > div > input:focus,
+    .stSelectbox > div > div > select:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    /* アラート */
+    .stAlert {
+        border-radius: 10px;
+        border: none;
+        box-shadow: 0 2px 8px rgba(30, 41, 59, 0.1);
+    }
+    
+    /* エクスパンダー */
+    .streamlit-expanderHeader {
+        background: var(--light-gray);
+        color: var(--dark-gray);
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    
+    /* データフレーム */
+    .stDataFrame {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(30, 41, 59, 0.05);
+    }
+    
+    /* テキスト色 */
+    .stMarkdown, .stWrite {
+        color: var(--dark-gray);
+    }
+    
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+        .main-header h1 {
+            font-size: 2rem;
+        }
+        .main-header p {
+            font-size: 1rem;
+        }
+        .card {
+            padding: 1.5rem;
+        }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -754,14 +1695,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # 環境情報（サイドバー）
-    with st.sidebar:
-        st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
-        st.subheader("🧰 システム情報")
-        st.write(f"**BeautifulSoup**: {_BS4_VERSION}")
-        st.write(f"**Requests**: {requests.__version__}")
-        st.write(f"**Python**: {sys.version.split()[0]}")
-        st.markdown('</div>', unsafe_allow_html=True)
+    # サイドバー（システム情報を削除）
     
     # システム初期化
     if 'db_manager' not in st.session_state:
@@ -851,83 +1785,121 @@ def main():
                 }
                 st.success("✅ 基本情報を設定しました")
             
-            # 選手・スタッフ情報入力
+            # 選手・スタッフ情報入力（複数人対応）
             if 'basic_info' in st.session_state:
-                st.subheader("👥 選手・スタッフ情報")
+                st.subheader("👥 選手・スタッフ情報（複数人申請対応）")
                 st.info(f"**{st.session_state.basic_info['university']}** - {st.session_state.basic_info['division']} - **{active_tournament['tournament_name']}**")
                 
-                with st.form("player_application_form"):
-                    col1, col2 = st.columns(2)
+                # 申請者数を選択
+                num_applicants = st.number_input("申請者数", min_value=1, max_value=20, value=1, help="一度に申請する人数を選択してください")
+                
+                # 申請者リストを初期化
+                if 'applicants_list' not in st.session_state:
+                    st.session_state.applicants_list = []
+                
+                # 申請者情報を入力
+                for i in range(num_applicants):
+                    st.markdown(f"### 👤 申請者 {i+1}")
                     
-                    with col1:
-                        role = st.selectbox("役職", ["選手", "スタッフ"])
-                        player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
-                        birth_date = st.date_input("生年月日（年・月・日）", value=datetime(2000, 1, 1))
-                    
-                    with col2:
-                        photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
+                    with st.form(f"applicant_form_{i}"):
+                        col1, col2 = st.columns(2)
                         
-                        # 役職に応じてファイルアップローダーを表示
-                        if role == "選手":
-                            jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
-                            staff_file = None
-                        else:  # スタッフの場合
-                            jba_file = None
-                            staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
+                        with col1:
+                            role = st.selectbox("役職", ["選手", "スタッフ"], key=f"role_{i}")
+                            player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎", key=f"name_{i}")
+                            birth_date = st.date_input("生年月日（年・月・日）", value=datetime(2000, 1, 1), key=f"birth_{i}")
                         
-                        remarks = st.text_area("備考欄", height=100)
-                    
-                    submitted = st.form_submit_button("📤 申請を送信", type="primary")
-                    
-                    if submitted:
-                        if not all([player_name, birth_date]):
-                            st.error("❌ 必須項目を入力してください")
-                        else:
-                            # 申請データを保存
-                            player_data = {
-                                'player_name': player_name,
-                                'birth_date': birth_date.strftime('%Y/%m/%d'),
-                                'university': st.session_state.basic_info['university'],
-                                'division': st.session_state.basic_info['division'],
-                                'role': role,
-                                'is_newcomer': st.session_state.basic_info['is_newcomer'],
-                                'remarks': remarks,
-                                'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
-                                'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
-                                'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None,
-                                'verification_result': "pending",  # 管理者が照合するまで保留
-                                'jba_match_data': ""
-                            }
+                        with col2:
+                            photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'], key=f"photo_{i}")
                             
-                            # データベースに保存
+                            # 役職に応じてファイルアップローダーを表示
+                            if role == "選手":
+                                jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'], key=f"jba_{i}")
+                                staff_file = None
+                            else:  # スタッフの場合
+                                jba_file = None
+                                staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}")
+                            
+                            remarks = st.text_area("備考欄", height=100, key=f"remarks_{i}")
+                        
+                        submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary", key=f"submit_{i}")
+                        
+                        if submitted:
+                            if not all([player_name, birth_date]):
+                                st.error(f"❌ 申請者 {i+1} の必須項目を入力してください")
+                            else:
+                                # 申請データをリストに追加
+                                applicant_data = {
+                                    'player_name': player_name,
+                                    'birth_date': birth_date.strftime('%Y/%m/%d'),
+                                    'university': st.session_state.basic_info['university'],
+                                    'division': st.session_state.basic_info['division'],
+                                    'role': role,
+                                    'is_newcomer': st.session_state.basic_info['is_newcomer'],
+                                    'remarks': remarks,
+                                    'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
+                                    'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
+                                    'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None,
+                                    'verification_result': "pending",
+                                    'jba_match_data': ""
+                                }
+                                
+                                st.session_state.applicants_list.append(applicant_data)
+                                st.success(f"✅ 申請者 {i+1} をリストに追加しました")
+                
+                # 一括送信
+                if st.session_state.applicants_list:
+                    st.markdown("### 📋 申請一覧")
+                    for idx, applicant in enumerate(st.session_state.applicants_list):
+                        st.write(f"{idx+1}. {applicant['player_name']} ({applicant['role']}) - {applicant['university']}")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        if st.button("📤 一括申請送信", type="primary"):
+                            # 全申請者をデータベースに保存
                             conn = sqlite3.connect(st.session_state.db_manager.db_path)
                             cursor = conn.cursor()
                             
-                            cursor.execute('''
-                                INSERT INTO player_applications 
-                                (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ''', (
-                                active_tournament['id'],
-                                player_data['player_name'],
-                                player_data['birth_date'],
-                                player_data['university'],
-                                player_data['division'],
-                                player_data['role'],
-                                player_data['remarks'],
-                                player_data['photo_path'],
-                                player_data['jba_file_path'],
-                                player_data['staff_file_path'],
-                                player_data['verification_result'],
-                                player_data['jba_match_data']
-                            ))
+                            application_ids = []
+                            for applicant in st.session_state.applicants_list:
+                                cursor.execute('''
+                                    INSERT INTO player_applications 
+                                    (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ''', (
+                                    active_tournament['id'],
+                                    applicant['player_name'],
+                                    applicant['birth_date'],
+                                    applicant['university'],
+                                    applicant['division'],
+                                    applicant['role'],
+                                    applicant['remarks'],
+                                    applicant['photo_path'],
+                                    applicant['jba_file_path'],
+                                    applicant['staff_file_path'],
+                                    applicant['verification_result'],
+                                    applicant['jba_match_data']
+                                ))
+                                application_ids.append(cursor.lastrowid)
                             
-                            application_id = cursor.lastrowid
                             conn.commit()
                             conn.close()
                             
-                            st.success(f"✅ 申請が送信されました（申請ID: {application_id}）")
-                            st.info("🔄 次の選手・スタッフの情報を入力してください")
+                            st.success(f"✅ {len(application_ids)}名の申請が送信されました")
+                            st.info(f"申請ID: {', '.join(map(str, application_ids))}")
+                            
+                            # リストをクリア
+                            st.session_state.applicants_list = []
+                            st.rerun()
+                    
+                    with col2:
+                        if st.button("🗑️ リストをクリア"):
+                            st.session_state.applicants_list = []
+                            st.rerun()
+                    
+                    with col3:
+                        if st.button("➕ 追加申請者"):
+                            st.rerun()
         else:
             # フォーム非表示時の案内
             if active_tournament is None:
@@ -937,10 +1909,17 @@ def main():
     
     # 照合結果
     with tab2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.header("🔍 申請照合・管理")
-        st.markdown("**管理者専用**: 申請された情報をJBAデータベースと照合し、データを管理します。")
-        st.markdown('</div>', unsafe_allow_html=True)
+        if not st.session_state.is_admin:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.header("🔒 アクセス制限")
+            st.error("❌ この機能は管理者のみ利用可能です")
+            st.info("管理者としてログインしてください")
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.header("🔍 申請照合・管理")
+            st.markdown("**管理者専用**: 申請された情報をJBAデータベースと照合し、データを管理します。")
+            st.markdown('</div>', unsafe_allow_html=True)
         
         # JBAログイン情報
         with st.expander("🔐 JBAログイン設定"):
@@ -1091,54 +2070,84 @@ def main():
     
     # 印刷
     with tab3:
-        st.header("🖨️ 印刷")
-        
-        # 申請一覧
-        active_tournament = st.session_state.tournament_management.get_active_tournament()
-        if active_tournament:
-            conn = sqlite3.connect(st.session_state.db_manager.db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT id, player_name, university, role, application_date
-                FROM player_applications 
-                WHERE tournament_id = ?
-                ORDER BY application_date DESC
-            ''', (active_tournament['id'],))
-            
-            applications = cursor.fetchall()
-            conn.close()
-            
-            if applications:
-                st.write(f"**申請一覧** ({len(applications)}件)")
-                
-                for app in applications:
-                    col1, col2, col3 = st.columns([3, 1, 1])
-                    
-                    with col1:
-                        st.write(f"**{app[1]}** ({app[2]}) - {app[3]}")
-                        st.write(f"申請日: {app[4]}")
-                    
-                    with col2:
-                        if st.button(f"🖨️ 印刷", key=f"print_{app[0]}"):
-                            doc = st.session_state.print_system.create_individual_certificate(app[0])
-                            if doc:
-                                # ファイル名を生成
-                                filename = f"仮選手証_{app[1]}_{app[0]}.docx"
-                                doc.save(filename)
-                                st.success(f"✅ {filename} を作成しました")
-                    
-                    
-                    st.divider()
-            else:
-                st.info("申請がありません")
+        if not st.session_state.is_admin:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.header("🔒 アクセス制限")
+            st.error("❌ この機能は管理者のみ利用可能です")
+            st.info("管理者としてログインしてください")
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
-            st.warning("⚠️ アクティブな大会が設定されていません")
+            st.header("🖨️ 印刷")
+            
+            # 申請一覧
+            active_tournament = st.session_state.tournament_management.get_active_tournament()
+            if active_tournament:
+                conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT id, player_name, university, role, application_date
+                    FROM player_applications 
+                    WHERE tournament_id = ?
+                    ORDER BY application_date DESC
+                ''', (active_tournament['id'],))
+                
+                applications = cursor.fetchall()
+                conn.close()
+                
+                if applications:
+                    st.write(f"**申請一覧** ({len(applications)}件)")
+                    
+                    for app in applications:
+                        col1, col2, col3 = st.columns([3, 1, 1])
+                        
+                        with col1:
+                            st.write(f"**{app[1]}** ({app[2]}) - {app[3]}")
+                            st.write(f"申請日: {app[4]}")
+                        
+                        with col2:
+                            if st.button(f"🖨️ 印刷", key=f"print_{app[0]}"):
+                                try:
+                                    doc = st.session_state.print_system.create_individual_certificate(app[0])
+                                    if doc:
+                                        # ファイル名を生成
+                                        filename = f"仮選手証_{app[1]}_{app[0]}.docx"
+                                        doc.save(filename)
+                                        st.success(f"✅ {filename} を作成しました")
+                                        
+                                        # ダウンロードボタンを表示
+                                        with open(filename, "rb") as file:
+                                            st.download_button(
+                                                label="📥 ダウンロード",
+                                                data=file.read(),
+                                                file_name=filename,
+                                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                            )
+                                except Exception as e:
+                                    st.error(f"❌ 印刷エラー: {str(e)}")
+                        
+                        with col3:
+                            if st.button(f"📄 詳細", key=f"detail_{app[0]}"):
+                                st.session_state.selected_application = app[0]
+                                st.rerun()
+                        
+                        st.divider()
+                else:
+                    st.info("申請がありません")
+            else:
+                st.warning("⚠️ アクティブな大会が設定されていません")
     
     # 通知
     with tab4:
-        st.header("📧 通知設定")
-        st.info("通知機能は開発中です")
+        if not st.session_state.is_admin:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.header("🔒 アクセス制限")
+            st.error("❌ この機能は管理者のみ利用可能です")
+            st.info("管理者としてログインしてください")
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.header("📧 通知設定")
+            st.info("通知機能は開発中です")
     
     # 統計（管理者のみ）
     if admin_mode:
@@ -1283,6 +2292,14 @@ def main():
                         
                         st.session_state.admin_dashboard.save_system_settings(new_settings)
                         st.success("✅ 設定を保存しました")
+    
+    # ページ選択
+    page_type = st.selectbox("ページを選択", ["回答ページ", "管理者ページ"], key="page_selector")
+    
+    if page_type == "管理者ページ":
+        admin_page()
+    else:
+        user_page()
 
 if __name__ == "__main__":
     main()
