@@ -1038,7 +1038,7 @@ def render_application_form():
     # 申請フォーム（アクティブ大会かつ受付中のときのみ表示）
     if active_tournament and active_tournament.get('response_accepting'):
         st.subheader("🏫 基本情報")
-        with st.form("basic_info_form"):
+        with st.form("basic_info_form_user"):
             col1, col2 = st.columns(2)
             with col1:
                 division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
@@ -1067,7 +1067,7 @@ def render_application_form():
             # 申請者フォーム
             for i in range(num_applicants):
                 with st.expander(f"申請者 {i+1}", expanded=True):
-                    with st.form(f"applicant_form_{i}"):
+                    with st.form(f"applicant_form_user_{i}"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
@@ -1762,7 +1762,7 @@ def main():
         # 申請フォーム（アクティブ大会かつ受付中のときのみ表示）
         if active_tournament and active_tournament.get('response_accepting'):
             st.subheader("🏫 基本情報")
-            with st.form("basic_info_form"):
+            with st.form("basic_info_form_main"):
                 col1, col2 = st.columns(2)
                 with col1:
                     division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
@@ -1795,7 +1795,7 @@ def main():
                 for i in range(num_applicants):
                     st.markdown(f"### 👤 申請者 {i+1}")
                     
-                    with st.form(f"applicant_form_{i}"):
+                    with st.form(f"applicant_form_main_{i}"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
