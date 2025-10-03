@@ -533,11 +533,11 @@ class JBAVerificationSystem:
                         
                         # メンバーIDが数字で、名前が空でない場合のみ追加
                         if member_id.isdigit() and name and name != "氏名":
-                            members.append({
-                                "member_id": member_id,
-                                "name": name,
+                        members.append({
+                            "member_id": member_id,
+                            "name": name,
                                 "birth_date": birth_date
-                            })
+                        })
             
             return {
                 "team_name": team_name,
@@ -1085,7 +1085,7 @@ def render_application_form():
                                 staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}")
                                 jba_file = None
                         
-                        submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary", key=f"submit_user_{i}")
+                        submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary")
                         
                         if submitted and name:
                             # 顔写真のbase64エンコード
@@ -1763,10 +1763,10 @@ def main():
         if active_tournament and active_tournament.get('response_accepting'):
             st.subheader("🏫 基本情報")
             with st.form("basic_info_form_main"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
-                    university = st.text_input("大学名", placeholder="例: 白鴎大学")
+            col1, col2 = st.columns(2)
+            with col1:
+                division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
+                university = st.text_input("大学名", placeholder="例: 白鴎大学")
                 with col2:
                     is_newcomer = st.radio("新入生ですか？", ["はい", "いいえ"], horizontal=True)
                 basic_submitted = st.form_submit_button("📝 基本情報を設定", type="primary")
@@ -1802,37 +1802,37 @@ def main():
                             role = st.selectbox("役職", ["選手", "スタッフ"], key=f"role_{i}")
                             player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎", key=f"name_{i}")
                             birth_date = st.date_input("生年月日（年・月・日）", value=datetime(2000, 1, 1), key=f"birth_{i}")
-                        
-                        with col2:
+            
+            with col2:
                             photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'], key=f"photo_{i}")
-                            
+                
                             # 役職に応じてファイルアップローダーを表示
-                            if role == "選手":
+                if role == "選手":
                                 jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'], key=f"jba_{i}")
                                 staff_file = None
                             else:  # スタッフの場合
-                                jba_file = None
+                    jba_file = None
                                 staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}")
                             
                             remarks = st.text_area("備考欄", height=100, key=f"remarks_{i}")
                         
                         submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary", key=f"submit_main_{i}")
-                        
-                        if submitted:
+            
+            if submitted:
                             if not all([player_name, birth_date]):
                                 st.error(f"❌ 申請者 {i+1} の必須項目を入力してください")
-                            else:
+                else:
                                 # 申請データをリストに追加
                                 applicant_data = {
-                                    'player_name': player_name,
-                                    'birth_date': birth_date.strftime('%Y/%m/%d'),
+                        'player_name': player_name,
+                        'birth_date': birth_date.strftime('%Y/%m/%d'),
                                     'university': st.session_state.basic_info['university'],
                                     'division': st.session_state.basic_info['division'],
-                                    'role': role,
+                        'role': role,
                                     'is_newcomer': st.session_state.basic_info['is_newcomer'],
-                                    'remarks': remarks,
-                                    'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
-                                    'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
+                        'remarks': remarks,
+                        'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
+                        'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
                                     'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None,
                                     'verification_result': "pending",
                                     'jba_match_data': ""
@@ -1851,17 +1851,17 @@ def main():
                     with col1:
                         if st.button("📤 一括申請送信", type="primary"):
                             # 全申請者をデータベースに保存
-                            conn = sqlite3.connect(st.session_state.db_manager.db_path)
-                            cursor = conn.cursor()
-                            
+                    conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                    cursor = conn.cursor()
+                    
                             application_ids = []
                             for applicant in st.session_state.applicants_list:
-                                cursor.execute('''
-                                    INSERT INTO player_applications 
+                    cursor.execute('''
+                        INSERT INTO player_applications 
                                     (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                ''', (
-                                    active_tournament['id'],
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        active_tournament['id'],
                                     applicant['player_name'],
                                     applicant['birth_date'],
                                     applicant['university'],
@@ -1876,9 +1876,9 @@ def main():
                                 ))
                                 application_ids.append(cursor.lastrowid)
                             
-                            conn.commit()
-                            conn.close()
-                            
+                    conn.commit()
+                    conn.close()
+                    
                             st.success(f"✅ {len(application_ids)}名の申請が送信されました")
                             st.info(f"申請ID: {', '.join(map(str, application_ids))}")
                             
@@ -1990,7 +1990,7 @@ def main():
                     with st.expander(f"申請ID: {app_id} - {player_name} ({university}) - {status_text}"):
                         col1, col2 = st.columns(2)
                         
-                        with col1:
+            with col1:
                             st.markdown('<div class="card">', unsafe_allow_html=True)
                             st.write(f"**氏名**: {player_name}")
                             st.write(f"**生年月日**: {birth_date}")
@@ -2000,13 +2000,13 @@ def main():
                             st.write(f"**申請日**: {app_date}")
                             st.markdown('</div>', unsafe_allow_html=True)
                         
-                        with col2:
+            with col2:
                             st.markdown('<div class="card">', unsafe_allow_html=True)
                             # 照合ボタン
                             if st.button(f"🔍 照合実行", key=f"verify_{app_id}", type="primary"):
                                 if not st.session_state.jba_system.logged_in:
                                     st.error("❌ 先にJBAにログインしてください")
-                                else:
+        else:
                                     st.info("🔍 JBAデータベースと照合中...")
                                     verification_result = st.session_state.jba_system.verify_player_info(
                                         player_name, birth_date, university
@@ -2071,52 +2071,52 @@ def main():
             st.info("管理者としてログインしてください")
             st.markdown('</div>', unsafe_allow_html=True)
         else:
-            st.header("🖨️ 印刷")
+        st.header("🖨️ 印刷")
+        
+        # 申請一覧
+        active_tournament = st.session_state.tournament_management.get_active_tournament()
+        if active_tournament:
+            conn = sqlite3.connect(st.session_state.db_manager.db_path)
+            cursor = conn.cursor()
             
-            # 申請一覧
-            active_tournament = st.session_state.tournament_management.get_active_tournament()
-            if active_tournament:
-                conn = sqlite3.connect(st.session_state.db_manager.db_path)
-                cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, player_name, university, role, application_date
+                FROM player_applications 
+                WHERE tournament_id = ?
+                ORDER BY application_date DESC
+            ''', (active_tournament['id'],))
+            
+            applications = cursor.fetchall()
+            conn.close()
+            
+            if applications:
+                st.write(f"**申請一覧** ({len(applications)}件)")
                 
-                cursor.execute('''
-                    SELECT id, player_name, university, role, application_date
-                    FROM player_applications 
-                    WHERE tournament_id = ?
-                    ORDER BY application_date DESC
-                ''', (active_tournament['id'],))
-                
-                applications = cursor.fetchall()
-                conn.close()
-                
-                if applications:
-                    st.write(f"**申請一覧** ({len(applications)}件)")
+                for app in applications:
+                    col1, col2, col3 = st.columns([3, 1, 1])
                     
-                    for app in applications:
-                        col1, col2, col3 = st.columns([3, 1, 1])
-                        
-                        with col1:
-                            st.write(f"**{app[1]}** ({app[2]}) - {app[3]}")
-                            st.write(f"申請日: {app[4]}")
-                        
-                        with col2:
-                            if st.button(f"🖨️ 印刷", key=f"print_{app[0]}"):
+                    with col1:
+                        st.write(f"**{app[1]}** ({app[2]}) - {app[3]}")
+                        st.write(f"申請日: {app[4]}")
+                    
+                    with col2:
+                        if st.button(f"🖨️ 印刷", key=f"print_{app[0]}"):
                                 try:
-                                    doc = st.session_state.print_system.create_individual_certificate(app[0])
-                                    if doc:
-                                        # ファイル名を生成
-                                        filename = f"仮選手証_{app[1]}_{app[0]}.docx"
-                                        doc.save(filename)
-                                        st.success(f"✅ {filename} を作成しました")
-                                        
+                            doc = st.session_state.print_system.create_individual_certificate(app[0])
+                            if doc:
+                                # ファイル名を生成
+                                filename = f"仮選手証_{app[1]}_{app[0]}.docx"
+                                doc.save(filename)
+                                st.success(f"✅ {filename} を作成しました")
+                    
                                         # ダウンロードボタンを表示
                                         with open(filename, "rb") as file:
-                                            st.download_button(
-                                                label="📥 ダウンロード",
+                                st.download_button(
+                                    label="📥 ダウンロード",
                                                 data=file.read(),
                                                 file_name=filename,
-                                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                            )
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                )
                                 except Exception as e:
                                     st.error(f"❌ 印刷エラー: {str(e)}")
                         
@@ -2124,12 +2124,12 @@ def main():
                             if st.button(f"📄 詳細", key=f"detail_{app[0]}"):
                                 st.session_state.selected_application = app[0]
                                 st.rerun()
-                        
-                        st.divider()
-                else:
-                    st.info("申請がありません")
+                    
+                    st.divider()
             else:
-                st.warning("⚠️ アクティブな大会が設定されていません")
+                st.info("申請がありません")
+        else:
+            st.warning("⚠️ アクティブな大会が設定されていません")
     
     # 通知
     with tab4:
@@ -2140,8 +2140,8 @@ def main():
             st.info("管理者としてログインしてください")
             st.markdown('</div>', unsafe_allow_html=True)
         else:
-            st.header("📧 通知設定")
-            st.info("通知機能は開発中です")
+        st.header("📧 通知設定")
+        st.info("通知機能は開発中です")
     
     # 統計（管理者のみ）
     if admin_mode:
@@ -2226,7 +2226,7 @@ def main():
                     tournament_number = st.number_input("第○回", min_value=1, max_value=999, value=101)
                 
                 with col2:
-                    new_tournament_year = st.text_input("年度", placeholder="例: 2025")
+                new_tournament_year = st.text_input("年度", placeholder="例: 2025")
                 
                 # 自動生成された大会名を表示
                 if tournament_type and tournament_number:
