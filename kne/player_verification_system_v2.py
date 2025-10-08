@@ -31,10 +31,10 @@ try:
     import bs4 as _bs4  # type: ignore
     _BS4_VERSION = getattr(_bs4, "__version__", "unknown")
 except Exception:
-    st.error(
+st.error(
         "依存パッケージ 'beautifulsoup4' が見つかりません。requirements.txt を確認してください。"
-    )
-    st.stop()
+)
+st.stop()
 
 # ページ設定
 st.set_page_config(page_title="仮選手証システム v2.0", page_icon=None, layout="wide")
@@ -45,7 +45,7 @@ class JBAVerificationSystem:
 
     def __init__(self) -> None:
         self.session = requests.Session()
-        self.session.headers.update({
+ self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
             'Accept': 'application/json',
             'Accept-Language': 'ja,en;q=0.9',
@@ -80,7 +80,7 @@ class JBAVerificationSystem:
             login_url = "https://team-jba.jp/login/done"
             res = self.session.post(login_url, data=login_data, allow_redirects=True)
             if "ログアウト" in res.text:
-                st.success("ログイン成功")
+st.success("ログイン成功")
                 self.logged_in = True
                 return True
             st.error("ログインに失敗しました")
@@ -133,7 +133,7 @@ class JBAVerificationSystem:
             if data.get('status') == 'success' and 'records' in data:
                 for row in data['records']:
                     if row.get('team_gender_id') == '男子':
-                        teams.append({
+ teams.append({
                             'id': row.get('id', ''),
                             'name': row.get('team_name', ''),
                             'url': f"https://team-jba.jp/organization/15250600/team/{row.get('id','')}/detail"
@@ -165,7 +165,7 @@ class JBAVerificationSystem:
                         a, b, c = [t.get_text(strip=True) for t in cells[:3]]
                         if "メンバーID" in a and "氏名" in b and "生年月日" in c:
                             target = table
-                            break
+break
             if target:
                 rows = target.find_all('tr')
                 for row in rows[1:]:
@@ -227,8 +227,8 @@ class JBAVerificationSystem:
 class DatabaseManager:
     def __init__(self, db_path: str = "player_verification.db") -> None:
         self.db_path = db_path
-        self.init_database()
-
+ self.init_database()
+ 
     def init_database(self) -> None:
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
@@ -300,8 +300,8 @@ class DatabaseManager:
             )
             """
         )
-        conn.commit()
-        conn.close()
+ conn.commit()
+ conn.close()
 
 
 class TournamentManagement:
@@ -320,8 +320,8 @@ class TournamentManagement:
         )
         tid = cur.lastrowid
         cur.execute("UPDATE tournaments SET is_active = 0 WHERE id != ?", (tid,))
-        conn.commit()
-        conn.close()
+ conn.commit()
+ conn.close()
         return tid
 
     def get_active_tournament(self):
@@ -329,7 +329,7 @@ class TournamentManagement:
         cur = conn.cursor()
         cur.execute("SELECT * FROM tournaments WHERE is_active = 1")
         row = cur.fetchone()
-        conn.close()
+ conn.close()
         if row:
             return {
                 'id': row[0],
@@ -345,7 +345,7 @@ class TournamentManagement:
         cur = conn.cursor()
         cur.execute("SELECT * FROM tournaments ORDER BY created_at DESC")
         rows = cur.fetchall()
-        conn.close()
+ conn.close()
         return [
             {
                 'id': r[0],
@@ -362,9 +362,9 @@ class TournamentManagement:
         cur = conn.cursor()
         cur.execute("UPDATE tournaments SET is_active = 0")
         cur.execute("UPDATE tournaments SET is_active = 1 WHERE id = ?", (tournament_id,))
-        conn.commit()
-        conn.close()
-
+ conn.commit()
+ conn.close()
+ 
     def set_tournament_response_accepting(self, tournament_id: int, accepting: bool) -> None:
         conn = sqlite3.connect(self.db_manager.db_path)
         cur = conn.cursor()
@@ -376,8 +376,8 @@ class TournamentManagement:
             """,
             (accepting, tournament_id),
         )
-        conn.commit()
-        conn.close()
+ conn.commit()
+ conn.close()
 
 
 class PrintSystem:
@@ -411,7 +411,7 @@ class PrintSystem:
             (application_id,),
         )
         row = cur.fetchone()
-        conn.close()
+ conn.close()
         if not row:
             raise RuntimeError("申請が見つかりません")
         player_name, birth_date, university, division, role, photo_path, tournament_name = row
@@ -504,7 +504,7 @@ class AdminDashboard:
         cur = conn.cursor()
         cur.execute("SELECT * FROM admin_settings ORDER BY id DESC LIMIT 1")
         row = cur.fetchone()
-        conn.close()
+ conn.close()
         if row:
             return {
                 'jba_email': row[1],
@@ -535,12 +535,14 @@ class AdminDashboard:
                 settings.get('current_tournament_id', None),
             ),
         )
-        conn.commit()
-        conn.close()
+ conn.commit()
+ conn.close()
 
 
 def render_header_logo() -> None:
-    logo_path = "kcbf_logo.png"
+    import os, base64
+    # 現在のスクリプトと同じ階層にある画像を参照するように変更
+    logo_path = os.path.join(os.path.dirname(__file__), "kcbf_logo.png")
     if os.path.exists(logo_path):
         try:
             with open(logo_path, "rb") as f:
@@ -564,11 +566,11 @@ def render_header_logo() -> None:
 def inject_styles() -> None:
     st.markdown(
         """
-        <style>
+<style>
         :root { --navy:#0f172a; --blue:#2563eb; --white:#fff; --dark-gray:#334155; --light-gray:#eef2f7; --border-gray:#d9dee7; }
         .main-header { background: var(--navy); padding: 3rem 2rem; border-radius: 15px; margin-bottom: 2rem; color: var(--white); text-align: center; box-shadow: 0 8px 32px rgba(30,41,59,.3); }
         .card { background: rgba(255,255,255,.75); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-gray); box-shadow: 0 4px 20px rgba(30,41,59,.1); }
-        </style>
+</style>
         """,
         unsafe_allow_html=True,
     )
@@ -604,25 +606,25 @@ def main() -> None:
                 val = (v[0] if isinstance(v, list) else v or '').strip().lower()
                 if val in ('admin', 'true', '1', 'yes'):
                     admin_mode = True
-                    break
+break
     st.session_state.is_admin = bool(admin_mode)
 
     if admin_mode:
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["申請フォーム", "照合結果", "カード発行", "統計", "管理者"])
-    else:
+ else:
         tab1 = st.tabs(["申請フォーム"])[0]
 
     # 申請フォーム
     with tab1:
-        st.header("仮選手証・仮スタッフ証申請フォーム")
+st.header("仮選手証・仮スタッフ証申請フォーム")
         active = st.session_state.tournament_management.get_active_tournament()
         if active:
             st.info(f"**大会名**: {active['tournament_name']} ({active['tournament_year']}年度)")
             if active['response_accepting']:
                 st.success("回答受付中")
-            else:
+ else:
                 st.error("回答受付停止中")
-        else:
+else:
             st.warning("アクティブな大会が設定されていません（管理者は「管理者」タブから大会を作成してください）")
 
         if active and active.get('response_accepting'):
@@ -672,11 +674,11 @@ def main() -> None:
                             if st.session_state.get(f"role_{i}") == "選手":
                                 st.file_uploader("JBA登録用紙（PDF）", type=["pdf"], key=f"jba_{i}")
                                 st.session_state[f"staff_{i}"] = None
-                            else:
+else:
                                 st.session_state[f"jba_{i}"] = None
                                 st.file_uploader("スタッフ登録用紙", type=["pdf"], key=f"staff_{i}")
                             st.text_area("備考欄", height=80, key=f"remarks_{i}")
-                        st.divider()
+st.divider()
                     submit_all = st.form_submit_button("一括申請送信", type="primary")
 
                 if submit_all:
@@ -695,7 +697,7 @@ def main() -> None:
                         staff_file = st.session_state.get(f"staff_{i}")
                         if not name_val or not birth_val:
                             skipped += 1
-                            continue
+continue
                         photo_path = None
                         if photo_file is not None:
                             photo_bytes = photo_file.getvalue()
@@ -719,51 +721,51 @@ def main() -> None:
                             """,
                             (
                                 active['id'],
-                                name_val,
-                                birth_val.strftime('%Y/%m/%d'),
-                                st.session_state.basic_info['university'],
-                                st.session_state.basic_info['division'],
-                                role_val,
-                                remarks_val,
-                                photo_path,
-                                jba_path,
-                                staff_path,
-                                "pending",
+name_val,
+birth_val.strftime('%Y/%m/%d'),
+st.session_state.basic_info['university'],
+st.session_state.basic_info['division'],
+role_val,
+remarks_val,
+photo_path,
+jba_path,
+staff_path,
+"pending",
                                 "",
                             ),
                         )
                         ids.append(cur.lastrowid)
                         added += 1
-                    conn.commit()
-                    conn.close()
+ conn.commit()
+ conn.close()
                     if added:
                         st.success(f"{added}名の申請が送信されました")
                         st.info(f"申請ID: {','.join(map(str, ids))}")
                     if skipped:
                         st.warning(f"入力不足のため {skipped} 件をスキップしました（氏名と生年月日が必須）")
-        else:
+else:
             if active is None:
-                st.info("管理者が大会を作成すると申請フォームが表示されます。")
+st.info("管理者が大会を作成すると申請フォームが表示されます。")
             elif not active.get('response_accepting'):
-                st.info("現在、この大会の回答受付は停止中です。")
+st.info("現在、この大会の回答受付は停止中です。")
 
     # 照合結果
     if admin_mode:
         with tab2:
-            st.header("申請照合・管理")
+st.header("申請照合・管理")
             with st.expander("JBAログイン設定"):
                 jba_email = st.text_input("JBAメールアドレス")
                 jba_password = st.text_input("JBAパスワード", type="password")
                 if st.button("JBAにログイン"):
                     if jba_email and jba_password:
                         if st.session_state.jba_system.login(jba_email, jba_password):
-                            st.success("ログイン成功")
-                        else:
-                            st.error("ログイン失敗")
-                    else:
-                        st.error("ログイン情報を入力してください")
+st.success("ログイン成功")
+ else:
+st.error("ログイン失敗")
+ else:
+st.error("ログイン情報を入力してください")
 
-            st.subheader("申請一覧と照合")
+st.subheader("申請一覧と照合")
             active = st.session_state.tournament_management.get_active_tournament()
             if active:
                 conn = sqlite3.connect(st.session_state.db_manager.db_path)
@@ -778,7 +780,7 @@ def main() -> None:
                     (active['id'],),
                 )
                 apps = cur.fetchall()
-                conn.close()
+ conn.close()
                 if apps:
                     st.write(f"**{active['tournament_name']}** の申請一覧")
                     for app in apps:
@@ -797,9 +799,9 @@ def main() -> None:
                             with c2:
                                 if st.button("照合実行", key=f"verify_{app_id}", type="primary"):
                                     if not st.session_state.jba_system.logged_in:
-                                        st.error("先にJBAにログインしてください")
-                                    else:
-                                        st.info("JBAデータベースと照合中...")
+st.error("先にJBAにログインしてください")
+else:
+st.info("JBAデータベースと照合中...")
                                         res = st.session_state.jba_system.verify_player_info(player_name, birth_date, university)
                                         conn = sqlite3.connect(st.session_state.db_manager.db_path)
                                         cur = conn.cursor()
@@ -818,22 +820,22 @@ def main() -> None:
                                             VALUES (?, ?, ?, ?, ?)
                                             """,
                                             (
-                                                app_id,
+app_id,
                                                 res["status"],
                                                 (res.get("jba_data") or {}).get("name", ""),
                                                 (res.get("jba_data") or {}).get("birth_date", ""),
                                                 res.get("similarity", 0.0),
                                             ),
                                         )
-                                        conn.commit()
-                                        conn.close()
-                                        st.rerun()
+conn.commit()
+ conn.close()
+st.rerun()
                             if vres and vres != "pending":
                                 st.info(f"照合結果: {vres}")
-                else:
-                    st.info("申請がありません")
-            else:
-                st.info("アクティブな大会が設定されていません")
+else:
+st.info("申請がありません")
+else:
+st.info("アクティブな大会が設定されていません")
 
         # カード発行（PNG/ZIP）
         with tab3:
@@ -852,7 +854,7 @@ def main() -> None:
                     (active['id'],),
                 )
                 apps = cur.fetchall()
-                conn.close()
+conn.close()
                 if apps:
                     st.write(f"**申請一覧** ({len(apps)}件)")
                     for app in apps:
@@ -879,8 +881,8 @@ def main() -> None:
                         with c3:
                             if st.button("詳細", key=f"detail_{a_id}"):
                                 st.session_state.selected_application = a_id
-                                st.rerun()
-                        st.divider()
+st.rerun()
+ st.divider()
 
                     st.subheader("大学ごとにZIP発行")
                     universities = sorted(list({a[2] for a in apps}))
@@ -905,9 +907,9 @@ def main() -> None:
                                 )
                             except Exception as e:
                                 st.error(f"ZIP生成エラー: {e}")
-                else:
-                    st.info("申請がありません")
-            else:
+ else:
+ st.info("申請がありません")
+ else:
                 st.warning("アクティブな大会が設定されていません")
 
         # 統計
@@ -921,7 +923,7 @@ def main() -> None:
                 total = cur.fetchone()[0]
                 cur.execute(
                     """
-                    SELECT
+SELECT
                         COUNT(CASE WHEN vr.match_status = 'マッチ' THEN 1 END) AS matched,
                         COUNT(CASE WHEN vr.match_status = '未マッチ' THEN 1 END) AS unmatched,
                         COUNT(CASE WHEN vr.match_status = '複数候補' THEN 1 END) AS multiple
@@ -933,7 +935,7 @@ def main() -> None:
                 )
                 r = cur.fetchone() or (0, 0, 0)
                 matched, unmatched, multiple = (r[0] or 0), (r[1] or 0), (r[2] or 0)
-                conn.close()
+conn.close()
                 c1, c2, c3, c4 = st.columns(4)
                 with c1:
                     st.metric("総申請数", total)
@@ -943,7 +945,7 @@ def main() -> None:
                     st.metric("未マッチ", unmatched)
                 with c4:
                     st.metric("複数候補", multiple)
-            else:
+else:
                 st.warning("アクティブな大会が設定されていません")
 
         # 管理者
@@ -958,10 +960,10 @@ def main() -> None:
                         new_status = not active['response_accepting']
                         st.session_state.tournament_management.set_tournament_response_accepting(active['id'], new_status)
                         st.success(f"回答受付を{'有効' if new_status else '無効'}にしました")
-                        st.rerun()
+ st.rerun()
                 with c2:
                     st.write(f"**回答受付**: {'有効' if active['response_accepting'] else '無効'}")
-            else:
+ else:
                 st.warning("アクティブな大会が設定されていません")
 
             st.subheader("新しい大会を作成")
@@ -981,8 +983,8 @@ def main() -> None:
                         tid = st.session_state.tournament_management.create_tournament(name, year)
                         st.success(f"大会を作成しました（ID: {tid}）")
                         st.success(f"**大会名**: {name}")
-                        st.rerun()
-                    else:
+ st.rerun()
+ else:
                         st.error("大会種別、回数、年度を入力してください")
 
             st.subheader("大会を切り替え")
@@ -993,10 +995,10 @@ def main() -> None:
                 if st.button("大会を切り替え"):
                     st.session_state.tournament_management.switch_tournament(options[selected])
                     st.success("大会を切り替えました")
-                    st.rerun()
-            else:
-                st.info("大会がありません")
-
+ st.rerun()
+ else:
+ st.info("大会がありません")
+ 
             st.subheader("システム設定")
             settings = st.session_state.admin_dashboard.get_system_settings()
             if settings:
@@ -1015,9 +1017,9 @@ def main() -> None:
                             'verification_threshold': thr,
                             'current_tournament_id': active['id'] if active else None,
                         }
-                        st.session_state.admin_dashboard.save_system_settings(new_settings)
+ st.session_state.admin_dashboard.save_system_settings(new_settings)
                         st.success("設定を保存しました")
 
 
 if __name__ == "__main__":
-    main()
+ main()
