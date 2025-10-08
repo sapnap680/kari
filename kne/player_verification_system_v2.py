@@ -1207,17 +1207,19 @@ def main():
 
     """メイン関数"""
 
-    # カスタムCSS（ネイビー・ブルー・白黒統一）
+    # カスタムCSS（JBAサイト風デザイン）
     st.markdown("""
     <style>
-    /* カラーパレット */
+    /* カラーパレット - JBAサイト風 */
     :root {
         --navy: #0f172a; /* 深めのネイビー */
         --blue: #2563eb; /* 主要アクセント */
+        --light-blue: #3b82f6;
         --white: #ffffff;
         --dark-gray: #334155;
         --light-gray: #eef2f7;
         --border-gray: #d9dee7;
+        --basketball-blue: #2563eb; /* バスケットボールカラー（青） */
     }
 
     /* グローバル背景 */
@@ -1469,25 +1471,25 @@ def main():
     
 
 
-    # 管理者ログイン（パスワード: 0503）
-    with st.sidebar.expander("🔐 管理者ログイン", expanded=False):
-        if 'is_admin' not in st.session_state:
-            st.session_state.is_admin = False
-        if not st.session_state.is_admin:
-            admin_password_input = st.text_input("パスワード", type="password", key="admin_password_input")
-            if st.button("ログイン"):
-                if admin_password_input == "0503":
-                    st.session_state.is_admin = True
-                    st.success("ログインしました")
-                else:
-                    st.error("パスワードが違います")
-        else:
-            st.success("管理者としてログイン中")
-            if st.button("ログアウト"):
-                st.session_state.is_admin = False
-                st.session_state.pop("admin_password_input", None)
+    # URLクエリで表示モードを切り替え（例: ?role=admin or ?mode=admin）
+    try:
+        query_params = st.query_params  # Streamlit >= 1.31
+    except Exception:
+        query_params = st.experimental_get_query_params()  # fallback
 
-    admin_mode = st.session_state.is_admin
+    role_param = None
+    if isinstance(query_params, dict):
+        # 候補キーから最初に見つかったものを使う
+        for key in ("role", "mode", "page"):
+            if key in query_params:
+                val = query_params.get(key)
+                if isinstance(val, list):
+                    role_param = (val[0] or "").lower()
+                else:
+                    role_param = (val or "").lower()
+                break
+
+    admin_mode = (role_param == "admin")
 
     
     if admin_mode:
@@ -1561,133 +1563,97 @@ def main():
                 }
                 st.success("✅ 基本情報を設定しました")
 
-            # 選手・スタッフ情報入力（1人ずつ追加方式）
+            # 一括入力方式に変更（セクション増減＋一括送信）
             if 'basic_info' in st.session_state:
-                st.subheader("👥 選手・スタッフ情報")
+                st.subheader("👥 一括入力（複数人）")
                 st.info(f"**{st.session_state.basic_info['university']}** - {st.session_state.basic_info['division']} - **{active_tournament['tournament_name']}**")
 
-                # 申請者リストを初期化
-                if 'applicants_list' not in st.session_state:
-                    st.session_state.applicants_list = []
+                # セクション数の管理
+                if 'section_count' not in st.session_state:
+                    st.session_state.section_count = 1
 
-                # 現在の申請者数を表示
-                st.markdown(f"### 📊 申請状況")
-                st.info(f"現在の申請者数: **{len(st.session_state.applicants_list)}人**")
+                b1, b2, b3 = st.columns([1, 1, 3])
+                with b1:
+                    if st.button("➕ セクション追加"):
+                        st.session_state.section_count = min(st.session_state.section_count + 1, 20)
+                with b2:
+                    if st.button("➖ セクション削除"):
+                        st.session_state.section_count = max(st.session_state.section_count - 1, 1)
+                with b3:
+                    st.write(f"現在のセクション数: {st.session_state.section_count}")
 
-                # 申請者リストの表示
-                if st.session_state.applicants_list:
-                    st.markdown("### 📋 申請者リスト")
-                    for idx, applicant in enumerate(st.session_state.applicants_list):
-                        col1, col2, col3 = st.columns([3, 1, 1])
-                        with col1:
-                            st.write(f"**{idx+1}.** {applicant['player_name']} ({applicant['role']}) - {applicant['university']}")
-                        with col2:
-                            if st.button("🗑️ 削除", key=f"delete_{idx}"):
-                                st.session_state.applicants_list.pop(idx)
-                                st.rerun()
-                        with col3:
-                            st.write("")
+                st.markdown("### 🧾 申請者情報（まとめて入力）")
+                with st.form("bulk_applicants_form", clear_on_submit=False):
+                    total_sections = st.session_state.section_count
+                    for i in range(total_sections):
+                        st.markdown(f"#### セクション {i+1}")
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            role_i = st.selectbox("役職", ["選手", "スタッフ"], key=f"role_{i}")
+                            name_i = st.text_input("氏名（漢字）", key=f"name_{i}")
+                            birth_i = st.date_input("生年月日（年・月・日）", value=datetime(2000, 1, 1), key=f"birth_{i}")
+                        with c2:
+                            photo_i = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'], key=f"photo_{i}")
+                            if st.session_state.get(f"role_{i}") == "選手":
+                                jba_i = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'], key=f"jba_{i}")
+                                staff_i = None
+                            else:
+                                jba_i = None
+                                staff_i = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}")
+                        remarks_i = st.text_area("備考欄", height=80, key=f"remarks_{i}")
+                        st.divider()
 
-                # 新しい申請者を追加するフォーム（1つのフォームのみ）
-                st.markdown("### ➕ 新しい申請者を追加")
-                with st.form("add_applicant_form", clear_on_submit=True):
-                    col1, col2 = st.columns(2)
+                    bulk_submit = st.form_submit_button("📤 一括申請送信", type="primary")
 
-                    with col1:
-                        role = st.selectbox("役職", ["選手", "スタッフ"])
-                        player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
-                        birth_date = st.date_input("生年月日（年・月・日）", value=datetime(2000, 1, 1))
+                if bulk_submit:
+                    conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                    cursor = conn.cursor()
+                    application_ids = []
+                    added_count = 0
+                    skipped = 0
+                    for i in range(st.session_state.section_count):
+                        name_val = st.session_state.get(f"name_{i}")
+                        birth_val = st.session_state.get(f"birth_{i}")
+                        role_val = st.session_state.get(f"role_{i}")
+                        remarks_val = st.session_state.get(f"remarks_{i}") or ""
+                        photo_path = None
+                        jba_path = None
+                        staff_path = None
 
-                    with col2:
-                        photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
-                        if role == "選手":
-                            jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
-                            staff_file = None
-                        else:
-                            jba_file = None
-                            staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
+                        # 必須チェック（名前＋生年月日）
+                        if not name_val or not birth_val:
+                            skipped += 1
+                            continue
 
-                    remarks = st.text_area("備考欄", height=100)
+                        cursor.execute('''
+                            INSERT INTO player_applications 
+                            (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            active_tournament['id'],
+                            name_val,
+                            birth_val.strftime('%Y/%m/%d'),
+                            st.session_state.basic_info['university'],
+                            st.session_state.basic_info['division'],
+                            role_val,
+                            remarks_val,
+                            photo_path,
+                            jba_path,
+                            staff_path,
+                            "pending",
+                            ""
+                        ))
+                        application_ids.append(cursor.lastrowid)
+                        added_count += 1
 
-                    # 送信ボタン
-                    submitted = st.form_submit_button("📤 申請者を追加", type="primary")
+                    conn.commit()
+                    conn.close()
 
-                    if submitted:
-                        if not all([player_name, birth_date]):
-                            st.error("❌ 必須項目を入力してください")
-                        else:
-                            applicant_data = {
-                                'player_name': player_name,
-                                'birth_date': birth_date.strftime('%Y/%m/%d'),
-                                'university': st.session_state.basic_info['university'],
-                                'division': st.session_state.basic_info['division'],
-                                'role': role,
-                                'is_newcomer': st.session_state.basic_info['is_newcomer'],
-                                'remarks': remarks,
-                                'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
-                                'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
-                                'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None,
-                                'verification_result': "pending",
-                                'jba_match_data': ""
-                            }
-
-                            st.session_state.applicants_list.append(applicant_data)
-                            st.success(f"✅ {player_name}さんをリストに追加しました")
-                            st.rerun()
-
-                # 一括送信
-                if st.session_state.applicants_list:
-                    st.markdown("### 📋 申請一覧")
-                    for idx, applicant in enumerate(st.session_state.applicants_list):
-                        st.write(f"{idx+1}. {applicant['player_name']} ({applicant['role']}) - {applicant['university']}")
-
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        if st.button("📤 一括申請送信", type="primary"):
-                            # 全申請者をデータベースに保存
-                            conn = sqlite3.connect(st.session_state.db_manager.db_path)
-                            cursor = conn.cursor()
-                            
-                            application_ids = []
-                            for applicant in st.session_state.applicants_list:
-                                cursor.execute('''
-                                    INSERT INTO player_applications 
-                                    (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                ''', (
-                                    active_tournament['id'],
-                                    applicant['player_name'],
-                                    applicant['birth_date'],
-                                    applicant['university'],
-                                    applicant['division'],
-                                    applicant['role'],
-                                    applicant['remarks'],
-                                    applicant['photo_path'],
-                                    applicant['jba_file_path'],
-                                    applicant['staff_file_path'],
-                                    applicant['verification_result'],
-                                    applicant['jba_match_data']
-                                ))
-                                application_ids.append(cursor.lastrowid)
-
-                            conn.commit()
-                            conn.close()
-                            
-                            st.success(f"✅ {len(application_ids)}名の申請が送信されました")
-                            st.info(f"申請ID: {', '.join(map(str, application_ids))}")
-
-                            # リストをクリア
-                            st.session_state.applicants_list = []
-                            st.rerun()
-
-                    with col2:
-                        if st.button("🗑️ リストをクリア"):
-                            st.session_state.applicants_list = []
-                            st.rerun()
-
-                    with col3:
-                        if st.button("➕ 追加申請者"):
-                            st.rerun()
+                    if added_count:
+                        st.success(f"✅ {added_count}名の申請が送信されました")
+                        st.info(f"申請ID: {', '.join(map(str, application_ids))}")
+                    if skipped:
+                        st.warning(f"⚠️ 入力不足のため {skipped}件をスキップしました（氏名と生年月日が必須）")
         else:
             # フォーム非表示時の案内
             if active_tournament is None:
