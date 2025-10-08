@@ -1633,23 +1633,17 @@ def main():
                     with col1:
                         if st.button("📤 一括申請送信", type="primary"):
                             # 全申請者をデータベースに保存
-                    conn = sqlite3.connect(st.session_state.db_manager.db_path)
-
-                    cursor = conn.cursor()
-                    
+                            conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                            cursor = conn.cursor()
+                            
                             application_ids = []
                             for applicant in st.session_state.applicants_list:
-                    cursor.execute('''
-
-                        INSERT INTO player_applications 
-
+                                cursor.execute('''
+                                    INSERT INTO player_applications 
                                     (tournament_id, player_name, birth_date, university, division, role, remarks, photo_path, jba_file_path, staff_file_path, verification_result, jba_match_data)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-
-                    ''', (
-
-                        active_tournament['id'],
-
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ''', (
+                                    active_tournament['id'],
                                     applicant['player_name'],
                                     applicant['birth_date'],
                                     applicant['university'],
@@ -1664,9 +1658,9 @@ def main():
                                 ))
                                 application_ids.append(cursor.lastrowid)
 
-                    conn.commit()
-                    conn.close()
-                    
+                            conn.commit()
+                            conn.close()
+                            
                             st.success(f"✅ {len(application_ids)}名の申請が送信されました")
                             st.info(f"申請ID: {', '.join(map(str, application_ids))}")
 
