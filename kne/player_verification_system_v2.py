@@ -1567,6 +1567,7 @@ def main():
                     st.session_state.applicants_list = []
 
                 # 申請者情報を入力
+                submitted = False
                 for i in range(num_applicants):
                     st.markdown(f"### 👤 申請者 {i+1}")
 
@@ -1582,46 +1583,40 @@ def main():
                             photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'], key=f"photo_{i}")
 
                             # 役職に応じてファイルアップローダーを表示
-                if role == "選手":
-                    jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'], key=f"jba_{i}")
-                    staff_file = None
-                else:  # スタッフの場合
-                    jba_file = None
-                    staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}")
-                
-                remarks = st.text_area("備考欄", height=100, key=f"remarks_{i}")
-                
-                submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary", key=f"submit_{i}")
-            
-            
-            if submitted:
-                if not all([player_name, birth_date]):
-                    st.error(f"❌ 申請者 {i+1} の必須項目を入力してください")
-                else:
-                    # 申請データをリストに追加
-                    applicant_data = {
-                        'player_name': player_name,
+                            if role == "選手":
+                                jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'], key=f"jba_{i}")
+                                staff_file = None
+                            else:  # スタッフの場合
+                                jba_file = None
+                                staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}")
 
-                        'birth_date': birth_date.strftime('%Y/%m/%d'),
+                        remarks = st.text_area("備考欄", height=100, key=f"remarks_{i}")
 
+                        submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary", key=f"submit_{i}")
+
+
+                        if submitted:
+                            if not all([player_name, birth_date]):
+                                st.error(f"❌ 申請者 {i+1} の必須項目を入力してください")
+                            else:
+                                # 申請データをリストに追加
+                                applicant_data = {
+                                    'player_name': player_name,
+                                    'birth_date': birth_date.strftime('%Y/%m/%d'),
                                     'university': st.session_state.basic_info['university'],
                                     'division': st.session_state.basic_info['division'],
-                        'role': role,
-
+                                    'role': role,
                                     'is_newcomer': st.session_state.basic_info['is_newcomer'],
-                        'remarks': remarks,
-
-                        'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
-
-                        'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
-
+                                    'remarks': remarks,
+                                    'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
+                                    'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
                                     'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None,
                                     'verification_result': "pending",
                                     'jba_match_data': ""
-                    }
+                                }
 
-                    st.session_state.applicants_list.append(applicant_data)
-                    st.success(f"✅ 申請者 {i+1} をリストに追加しました")
+                                st.session_state.applicants_list.append(applicant_data)
+                                st.success(f"✅ 申請者 {i+1} をリストに追加しました")
 
                 # 一括送信
                 if st.session_state.applicants_list:
