@@ -1808,7 +1808,7 @@ def main():
                     with st.expander(f"申請ID: {app_id} - {player_name} ({university}) - {status_text}"):
                         col1, col2 = st.columns(2)
 
-            with col1:
+                        with col1:
 
                             st.markdown('<div class="card">', unsafe_allow_html=True)
                             st.write(f"**氏名**: {player_name}")
@@ -1819,15 +1819,14 @@ def main():
                             st.write(f"**申請日**: {app_date}")
                             st.markdown('</div>', unsafe_allow_html=True)
 
-            with col2:
+                        with col2:
 
                             st.markdown('<div class="card">', unsafe_allow_html=True)
                             # 照合ボタン
                             if st.button(f"🔍 照合実行", key=f"verify_{app_id}", type="primary"):
                                 if not st.session_state.jba_system.logged_in:
                                     st.error("❌ 先にJBAにログインしてください")
-        else:
-
+                                else:
                                     st.info("🔍 JBAデータベースと照合中...")
                                     verification_result = st.session_state.jba_system.verify_player_info(
                                         player_name, birth_date, university
@@ -1896,7 +1895,7 @@ def main():
             st.info("管理者としてログインしてください")
             st.markdown('</div>', unsafe_allow_html=True)
         else:
-        st.header("🖨️ 印刷")
+            st.header("🖨️ 印刷")
 
 
         
@@ -1955,36 +1954,16 @@ def main():
                     with col2:
 
                         if st.button(f"🖨️ 印刷", key=f"print_{app[0]}"):
+                            try:
+                                doc = st.session_state.print_system.create_individual_certificate(app[0])
 
-                                try:
-                            doc = st.session_state.print_system.create_individual_certificate(app[0])
-
-                            if doc:
-
-                                # ファイル名を生成
-
-                                filename = f"仮選手証_{app[1]}_{app[0]}.docx"
-
-                                doc.save(filename)
-
-                                st.success(f"✅ {filename} を作成しました")
-                    
-
-
-                                        # ダウンロードボタンを表示
-                                        with open(filename, "rb") as file:
-                                st.download_button(
-
-                                    label="📥 ダウンロード",
-
-                                                data=file.read(),
-                                                file_name=filename,
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-
-                                )
-
-                                except Exception as e:
-                                    st.error(f"❌ 印刷エラー: {str(e)}")
+                                if doc:
+                                    # ファイル名を生成
+                                    filename = f"仮選手証_{app[1]}_{app[0]}.docx"
+                                    doc.save(filename)
+                                    st.success(f"✅ {filename} を作成しました")
+                            except Exception as e:
+                                st.error(f"❌ 印刷エラー: {str(e)}")
 
                         with col3:
                             if st.button(f"📄 詳細", key=f"detail_{app[0]}"):
@@ -2014,7 +1993,7 @@ def main():
             st.info("管理者としてログインしてください")
             st.markdown('</div>', unsafe_allow_html=True)
         else:
-        st.header("📧 通知設定")
+            st.header("📧 通知設定")
 
         st.info("通知機能は開発中です")
     
@@ -2134,7 +2113,7 @@ def main():
                     tournament_number = st.number_input("第○回", min_value=1, max_value=999, value=101)
 
                 with col2:
-                new_tournament_year = st.text_input("年度", placeholder="例: 2025")
+                    new_tournament_year = st.text_input("年度", placeholder="例: 2025")
                 
 
 
