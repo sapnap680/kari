@@ -1212,12 +1212,17 @@ def main():
     <style>
     /* カラーパレット */
     :root {
-        --navy: #1e293b;
-        --blue: #3b82f6;
+        --navy: #0f172a; /* 深めのネイビー */
+        --blue: #2563eb; /* 主要アクセント */
         --white: #ffffff;
-        --dark-gray: #374151;
-        --light-gray: #f8fafc;
-        --border-gray: #e5e7eb;
+        --dark-gray: #334155;
+        --light-gray: #eef2f7;
+        --border-gray: #d9dee7;
+    }
+
+    /* グローバル背景 */
+    body {
+        background: linear-gradient(180deg, #f9fafb 0%, #e2e8f0 100%);
     }
 
     /* メインコンテナ */
@@ -1252,7 +1257,8 @@ def main():
 
     /* カード */
     .card {
-        background: var(--white);
+        backdrop-filter: blur(6px);
+        background: rgba(255, 255, 255, 0.75);
         padding: 2rem;
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(30, 41, 59, 0.1);
@@ -1341,7 +1347,7 @@ def main():
         gap: 0.5rem;
     }
     .stTabs [data-baseweb="tab"] {
-        background: var(--light-gray);
+        background: rgba(255, 255, 255, 0.7);
         color: var(--dark-gray);
         border-radius: 8px;
         padding: 0.75rem 1.5rem;
@@ -1349,8 +1355,17 @@ def main():
         transition: all 0.3s ease;
     }
     .stTabs [aria-selected="true"] {
-        background: var(--blue);
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
         color: var(--white);
+    }
+
+    /* 見出しの強調 */
+    h1, h2, h3 {
+        font-weight: 800;
+        color: var(--navy);
+        border-left: 6px solid var(--blue);
+        padding-left: 10px;
+        margin-top: 1rem;
     }
 
     /* 入力フィールド */
@@ -1529,22 +1544,14 @@ def main():
             st.subheader("🏫 基本情報")
             with st.form("basic_info_form"):
                 col1, col2 = st.columns(2)
-            
 
+                with col1:
+                    division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
+                    university = st.text_input("大学名", placeholder="例: 白鴎大学")
 
-            with col1:
-
-                division = st.selectbox("部（2025年度）", ["1部", "2部", "3部", "4部", "5部"])
-
-                university = st.text_input("大学名", placeholder="例: 白鴎大学")
-
-
-            
-            with col2:
-
-                is_newcomer = st.radio("新入生ですか？", ["はい", "いいえ"], horizontal=True)
-
-                basic_submitted = st.form_submit_button("📝 基本情報を設定", type="primary")
+                with col2:
+                    is_newcomer = st.radio("新入生ですか？", ["はい", "いいえ"], horizontal=True)
+                    basic_submitted = st.form_submit_button("📝 基本情報を設定", type="primary")
 
             if basic_submitted and university:
                 st.session_state.basic_info = {
