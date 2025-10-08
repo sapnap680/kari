@@ -1561,73 +1561,79 @@ def main():
                 }
                 st.success("✅ 基本情報を設定しました")
 
-            # 選手・スタッフ情報入力（複数人対応）
+            # 選手・スタッフ情報入力（1人ずつ追加方式）
             if 'basic_info' in st.session_state:
-                st.subheader("👥 選手・スタッフ情報（複数人申請対応）")
+                st.subheader("👥 選手・スタッフ情報")
                 st.info(f"**{st.session_state.basic_info['university']}** - {st.session_state.basic_info['division']} - **{active_tournament['tournament_name']}**")
-
-                # 申請者数を選択
-                num_applicants = st.number_input("申請者数", min_value=1, max_value=20, value=1, help="一度に申請する人数を選択してください")
 
                 # 申請者リストを初期化
                 if 'applicants_list' not in st.session_state:
                     st.session_state.applicants_list = []
 
-                # 申請者情報を入力
-                submitted = False
-                for i in range(num_applicants):
-                    st.markdown(f"### 👤 申請者 {i+1}")
+                # 現在の申請者数を表示
+                st.markdown(f"### 📊 申請状況")
+                st.info(f"現在の申請者数: **{len(st.session_state.applicants_list)}人**")
 
-                    with st.form(f"applicant_form_{i}"):
-                        col1, col2 = st.columns(2)
-
+                # 申請者リストの表示
+                if st.session_state.applicants_list:
+                    st.markdown("### 📋 申請者リスト")
+                    for idx, applicant in enumerate(st.session_state.applicants_list):
+                        col1, col2, col3 = st.columns([3, 1, 1])
                         with col1:
-                            role = st.selectbox("役職", ["選手", "スタッフ"], key=f"role_{i}")
-                            player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎", key=f"name_{i}")
-                            birth_date = st.date_input("生年月日（年・月・日）", value=datetime(2000, 1, 1), key=f"birth_{i}")
-
+                            st.write(f"**{idx+1}.** {applicant['player_name']} ({applicant['role']}) - {applicant['university']}")
                         with col2:
-                            photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'], key=f"photo_{i}")
+                            if st.button("🗑️ 削除", key=f"delete_{idx}"):
+                                st.session_state.applicants_list.pop(idx)
+                                st.rerun()
+                        with col3:
+                            st.write("")
 
-                        # 役職に応じてファイルアップローダーを表示（両方表示して後で処理）
-                        jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'], key=f"jba_{i}", help="選手の場合のみ必要")
-                        staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}", help="スタッフの場合のみ必要")
+                # 新しい申請者を追加するフォーム（1つのフォームのみ）
+                st.markdown("### ➕ 新しい申請者を追加")
+                with st.form("add_applicant_form", clear_on_submit=True):
+                    col1, col2 = st.columns(2)
 
-                        remarks = st.text_area("備考欄", height=100, key=f"remarks_{i}")
+                    with col1:
+                        role = st.selectbox("役職", ["選手", "スタッフ"])
+                        player_name = st.text_input("氏名（漢字）", placeholder="例: 田中太郎")
+                        birth_date = st.date_input("生年月日（年・月・日）", value=datetime(2000, 1, 1))
 
-                        submitted = st.form_submit_button(f"📤 申請者 {i+1} を追加", type="primary", key=f"submit_{i}")
+                    with col2:
+                        photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'])
+                        if role == "選手":
+                            jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'])
+                            staff_file = None
+                        else:
+                            jba_file = None
+                            staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'])
 
+                    remarks = st.text_area("備考欄", height=100)
 
-                        if submitted:
-                            if not all([player_name, birth_date]):
-                                st.error(f"❌ 申請者 {i+1} の必須項目を入力してください")
-                            else:
-                                # 役職に応じてファイルパスを設定
-                                if role == "選手":
-                                    jba_file_path = f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None
-                                    staff_file_path = None
-                                else:  # スタッフの場合
-                                    jba_file_path = None
-                                    staff_file_path = f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None
-                                
-                                # 申請データをリストに追加
-                                applicant_data = {
-                                    'player_name': player_name,
-                                    'birth_date': birth_date.strftime('%Y/%m/%d'),
-                                    'university': st.session_state.basic_info['university'],
-                                    'division': st.session_state.basic_info['division'],
-                                    'role': role,
-                                    'is_newcomer': st.session_state.basic_info['is_newcomer'],
-                                    'remarks': remarks,
-                                    'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
-                                    'jba_file_path': jba_file_path,
-                                    'staff_file_path': staff_file_path,
-                                    'verification_result': "pending",
-                                    'jba_match_data': ""
-                                }
+                    # 送信ボタン
+                    submitted = st.form_submit_button("📤 申請者を追加", type="primary")
 
-                                st.session_state.applicants_list.append(applicant_data)
-                                st.success(f"✅ 申請者 {i+1} をリストに追加しました")
+                    if submitted:
+                        if not all([player_name, birth_date]):
+                            st.error("❌ 必須項目を入力してください")
+                        else:
+                            applicant_data = {
+                                'player_name': player_name,
+                                'birth_date': birth_date.strftime('%Y/%m/%d'),
+                                'university': st.session_state.basic_info['university'],
+                                'division': st.session_state.basic_info['division'],
+                                'role': role,
+                                'is_newcomer': st.session_state.basic_info['is_newcomer'],
+                                'remarks': remarks,
+                                'photo_path': f"photos/{player_name}_{birth_date}.jpg" if photo_file else None,
+                                'jba_file_path': f"jba_files/{player_name}_{birth_date}.pdf" if jba_file else None,
+                                'staff_file_path': f"staff_files/{player_name}_{birth_date}.pdf" if staff_file else None,
+                                'verification_result': "pending",
+                                'jba_match_data': ""
+                            }
+
+                            st.session_state.applicants_list.append(applicant_data)
+                            st.success(f"✅ {player_name}さんをリストに追加しました")
+                            st.rerun()
 
                 # 一括送信
                 if st.session_state.applicants_list:
