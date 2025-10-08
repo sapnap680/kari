@@ -429,9 +429,9 @@ class JBAVerificationSystem:
 
                         # メンバーIDが数字で、名前が空でない場合のみ追加
                         if member_id.isdigit() and name and name != "氏名":
-                        members.append({
-                            "member_id": member_id,
-                            "name": name,
+                            members.append({
+                                "member_id": member_id,
+                                "name": name,
                                 "birth_date": birth_date
                             })
 
@@ -1528,7 +1528,7 @@ def main():
         if active_tournament and active_tournament.get('response_accepting'):
             st.subheader("🏫 基本情報")
             with st.form("basic_info_form"):
-            col1, col2 = st.columns(2)
+                col1, col2 = st.columns(2)
             
 
 
