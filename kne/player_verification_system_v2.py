@@ -1589,13 +1589,13 @@ def main():
                         with col2:
                             photo_file = st.file_uploader("顔写真アップロード", type=['jpg', 'jpeg', 'png'], key=f"photo_{i}")
 
-                            # 役職に応じてファイルアップローダーを表示
-                            if role == "選手":
-                                jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'], key=f"jba_{i}")
-                                staff_file = None
-                            else:  # スタッフの場合
-                                jba_file = None
-                                staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}")
+                        # 役職に応じてファイルアップローダーを表示
+                        if role == "選手":
+                            jba_file = st.file_uploader("JBA登録用紙（PDF）", type=['pdf'], key=f"jba_{i}")
+                            staff_file = None
+                        else:  # スタッフの場合
+                            jba_file = None
+                            staff_file = st.file_uploader("スタッフ登録用紙", type=['pdf'], key=f"staff_{i}")
 
                         remarks = st.text_area("備考欄", height=100, key=f"remarks_{i}")
 
