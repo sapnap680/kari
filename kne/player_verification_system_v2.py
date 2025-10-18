@@ -1739,9 +1739,10 @@ def main():
                 st.info("現在、この大会の回答受付は停止中です。")
 
     
-    # 照合結果
+    # 照合結果（管理者のみ）
 
-    with tab2:
+    if admin_mode:
+        with tab2:
 
         if not st.session_state.is_admin:
             st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -1978,8 +1979,9 @@ def main():
             st.info("アクティブな大会が設定されていません")
 
 
-    # 印刷
-    with tab3:
+    # 印刷（管理者のみ）
+    if admin_mode:
+        with tab3:
         if not st.session_state.is_admin:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.header("アクセス制限")
@@ -2124,10 +2126,8 @@ def main():
             else:
                 st.warning("アクティブな大会が設定されていません")
 
-    # 管理者機能
-
+    # 管理者機能（管理者のみ）
     if admin_mode:
-
         with tab5:
 
             st.header("管理者ダッシュボード")
