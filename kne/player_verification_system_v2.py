@@ -75,9 +75,9 @@ import threading
 
 st.set_page_config(
 
-    page_title="🏀 仮選手証システム v2.0",
+    page_title="仮選手証システム v2.0",
 
-    page_icon="🏀",
+    page_icon="kcbf_logo.png",
 
     layout="wide"
 
@@ -1221,6 +1221,39 @@ def main():
         --border-gray: #d9dee7;
         --basketball-blue: #2563eb; /* バスケットボールカラー（青） */
     }
+    
+    /* 青いバスケットボールアイコン */
+    .basketball-icon {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(45deg, var(--blue), var(--light-blue));
+        border-radius: 50%;
+        position: relative;
+        margin-right: 8px;
+    }
+    .basketball-icon::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 16px;
+        height: 2px;
+        background: var(--white);
+        border-radius: 1px;
+    }
+    .basketball-icon::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(90deg);
+        width: 16px;
+        height: 2px;
+        background: var(--white);
+        border-radius: 1px;
+    }
 
     /* グローバル背景 */
     body {
@@ -1431,8 +1464,8 @@ def main():
     # メインヘッダー
     st.markdown("""
     <div class="main-header">
-        <h1>🏀 仮選手証・スタッフ証発行システム</h1>
-        <p>関東大学バスケットボール連盟 公式システム</p>
+        <h1><img src="kcbf_logo.png" alt="KCBF Logo" style="width: 40px; height: 40px; margin-right: 10px; vertical-align: middle;">仮選手証・スタッフ証発行システム</h1>
+        <p>関東大学バスケットボール連盟 </p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1490,23 +1523,29 @@ def main():
                 break
 
     admin_mode = (role_param == "admin")
+    
+    # 管理者モードでない場合は申請のみ可能
+    if not admin_mode:
+        st.session_state.is_admin = False
+    else:
+        st.session_state.is_admin = True
 
     
     if admin_mode:
 
         # 管理者タブ
 
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
-            "📝 申請フォーム", "🔍 照合結果", "🖨️ 印刷", "📧 通知", "📊 統計", "🎛️ 管理者"
+            "申請フォーム", "照合結果", "印刷", "統計", "管理者"
         ])
 
     else:
 
         # 一般ユーザータブ
 
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "📝 申請フォーム", "🔍 照合結果", "🖨️ 印刷", "📧 通知"
+        tab1 = st.tabs([
+            "申請フォーム"
         ])
     
 
@@ -1516,7 +1555,7 @@ def main():
     with tab1:
 
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.header("📝 仮選手証・仮スタッフ証申請フォーム")
+        st.header("仮選手証・仮スタッフ証申請フォーム")
         
         st.markdown("**関東大学バスケットボール連盟** の公式申請システムです。")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1531,19 +1570,19 @@ def main():
             
             if active_tournament['response_accepting']:
 
-                st.success("✅ 回答受付中")
+                st.success("回答受付中")
 
             else:
 
-                st.error("❌ 回答受付停止中")
+                st.error("回答受付停止中")
 
         else:
 
-            st.warning("⚠️ アクティブな大会が設定されていません（管理者は“🎛️ 管理者”タブから大会を作成してください）")
+            st.warning("アクティブな大会が設定されていません（管理者は管理者タブから大会を作成してください）")
 
         # 申請フォーム（アクティブ大会かつ受付中のときのみ表示）
         if active_tournament and active_tournament.get('response_accepting'):
-            st.subheader("🏫 基本情報")
+            st.subheader("基本情報")
             with st.form("basic_info_form"):
                 col1, col2 = st.columns(2)
 
@@ -1553,7 +1592,7 @@ def main():
 
                 with col2:
                     is_newcomer = st.radio("新入生ですか？", ["はい", "いいえ"], horizontal=True)
-                    basic_submitted = st.form_submit_button("📝 基本情報を設定", type="primary")
+                    basic_submitted = st.form_submit_button("基本情報を設定", type="primary")
 
             if basic_submitted and university:
                 st.session_state.basic_info = {
@@ -1561,11 +1600,11 @@ def main():
                     'university': university,
                     'is_newcomer': is_newcomer == "はい"
                 }
-                st.success("✅ 基本情報を設定しました")
+                st.success("基本情報を設定しました")
 
             # 一括入力方式に変更（セクション増減＋一括送信）
             if 'basic_info' in st.session_state:
-                st.subheader("👥 一括入力（複数人）")
+                st.subheader("一括入力（複数人）")
                 st.info(f"**{st.session_state.basic_info['university']}** - {st.session_state.basic_info['division']} - **{active_tournament['tournament_name']}**")
 
                 # セクション数の管理
@@ -1574,15 +1613,15 @@ def main():
 
                 b1, b2, b3 = st.columns([1, 1, 3])
                 with b1:
-                    if st.button("➕ セクション追加"):
+                    if st.button("セクション追加"):
                         st.session_state.section_count = min(st.session_state.section_count + 1, 20)
                 with b2:
-                    if st.button("➖ セクション削除"):
+                    if st.button("セクション削除"):
                         st.session_state.section_count = max(st.session_state.section_count - 1, 1)
                 with b3:
                     st.write(f"現在のセクション数: {st.session_state.section_count}")
 
-                st.markdown("### 🧾 申請者情報（まとめて入力）")
+                st.markdown("### 申請者情報（まとめて入力）")
                 with st.form("bulk_applicants_form", clear_on_submit=False):
                     total_sections = st.session_state.section_count
                     for i in range(total_sections):
@@ -1603,7 +1642,7 @@ def main():
                         remarks_i = st.text_area("備考欄", height=80, key=f"remarks_{i}")
                         st.divider()
 
-                    bulk_submit = st.form_submit_button("📤 一括申請送信", type="primary")
+                    bulk_submit = st.form_submit_button("一括申請送信", type="primary")
 
                 if bulk_submit:
                     conn = sqlite3.connect(st.session_state.db_manager.db_path)
@@ -1611,14 +1650,52 @@ def main():
                     application_ids = []
                     added_count = 0
                     skipped = 0
+                    
+                    # 写真保存用のディレクトリを作成
+                    import os
+                    photos_dir = "uploaded_photos"
+                    os.makedirs(photos_dir, exist_ok=True)
+                    
                     for i in range(st.session_state.section_count):
                         name_val = st.session_state.get(f"name_{i}")
                         birth_val = st.session_state.get(f"birth_{i}")
                         role_val = st.session_state.get(f"role_{i}")
                         remarks_val = st.session_state.get(f"remarks_{i}") or ""
+                        photo_file = st.session_state.get(f"photo_{i}")
+                        jba_file = st.session_state.get(f"jba_{i}")
+                        staff_file = st.session_state.get(f"staff_{i}")
+                        
+                        # 写真保存処理
                         photo_path = None
+                        if photo_file is not None:
+                            # ファイル名を生成（申請ID + 元ファイル名）
+                            file_extension = os.path.splitext(photo_file.name)[1]
+                            photo_filename = f"photo_{i+1}_{name_val.replace(' ', '_')}{file_extension}"
+                            photo_path = os.path.join(photos_dir, photo_filename)
+                            
+                            # ファイルを保存
+                            with open(photo_path, "wb") as f:
+                                f.write(photo_file.getbuffer())
+                        
+                        # JBAファイル保存処理
                         jba_path = None
+                        if jba_file is not None:
+                            file_extension = os.path.splitext(jba_file.name)[1]
+                            jba_filename = f"jba_{i+1}_{name_val.replace(' ', '_')}{file_extension}"
+                            jba_path = os.path.join(photos_dir, jba_filename)
+                            
+                            with open(jba_path, "wb") as f:
+                                f.write(jba_file.getbuffer())
+                        
+                        # スタッフファイル保存処理
                         staff_path = None
+                        if staff_file is not None:
+                            file_extension = os.path.splitext(staff_file.name)[1]
+                            staff_filename = f"staff_{i+1}_{name_val.replace(' ', '_')}{file_extension}"
+                            staff_path = os.path.join(photos_dir, staff_filename)
+                            
+                            with open(staff_path, "wb") as f:
+                                f.write(staff_file.getbuffer())
 
                         # 必須チェック（名前＋生年月日）
                         if not name_val or not birth_val:
@@ -1650,10 +1727,10 @@ def main():
                     conn.close()
 
                     if added_count:
-                        st.success(f"✅ {added_count}名の申請が送信されました")
+                        st.success(f"{added_count}名の申請が送信されました")
                         st.info(f"申請ID: {', '.join(map(str, application_ids))}")
                     if skipped:
-                        st.warning(f"⚠️ 入力不足のため {skipped}件をスキップしました（氏名と生年月日が必須）")
+                        st.warning(f"入力不足のため {skipped}件をスキップしました（氏名と生年月日が必須）")
         else:
             # フォーム非表示時の案内
             if active_tournament is None:
@@ -1668,20 +1745,20 @@ def main():
 
         if not st.session_state.is_admin:
             st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.header("🔒 アクセス制限")
-            st.error("❌ この機能は管理者のみ利用可能です")
+            st.header("アクセス制限")
+            st.error("この機能は管理者のみ利用可能です")
             st.info("管理者としてログインしてください")
             st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.header("🔍 申請照合・管理")
+            st.header("申請照合・管理")
             st.markdown("**管理者専用**: 申請された情報をJBAデータベースと照合し、データを管理します。")
             st.markdown('</div>', unsafe_allow_html=True)
 
         
         # JBAログイン情報
 
-        with st.expander("🔐 JBAログイン設定"):
+        with st.expander("JBAログイン設定"):
 
             jba_email = st.text_input("JBAメールアドレス", type="default")
 
@@ -1689,33 +1766,33 @@ def main():
 
 
             
-            if st.button("🔐 JBAにログイン"):
+            if st.button("JBAにログイン"):
 
                 if jba_email and jba_password:
 
                     if st.session_state.jba_system.login(jba_email, jba_password):
 
-                        st.success("✅ ログイン成功")
+                        st.success("ログイン成功")
 
                     else:
 
-                        st.error("❌ ログイン失敗")
+                        st.error("ログイン失敗")
 
                 else:
 
-                    st.error("❌ ログイン情報を入力してください")
+                    st.error("ログイン情報を入力してください")
         
 
 
         # チームURL直接テスト
-        st.subheader("🧪 チームURL直接テスト")
+        st.subheader("チームURL直接テスト")
         team_url = st.text_input("チームURL", placeholder="例: https://team-jba.jp/organization/15250600/team/12345")
 
 
-        if st.button("🔍 チーム情報取得テスト") and team_url:
+        if st.button("チーム情報取得テスト") and team_url:
             if not st.session_state.jba_system.logged_in:
 
-                st.error("❌ 先にJBAにログインしてください")
+                st.error("先にJBAにログインしてください")
 
             else:
 
@@ -1723,7 +1800,7 @@ def main():
                 team_data = st.session_state.jba_system.get_team_members(team_url)
 
                 if team_data and team_data["members"]:
-                    st.success(f"✅ チーム情報を取得しました")
+                    st.success(f"チーム情報を取得しました")
                     st.write(f"**チーム名**: {team_data['team_name']}")
                     st.write(f"**メンバー数**: {len(team_data['members'])}人")
 
@@ -1736,10 +1813,10 @@ def main():
 
                 else:
     
-                    st.error("❌ チーム情報を取得できませんでした")
+                    st.error("チーム情報を取得できませんでした")
         
         # 申請一覧と照合
-        st.subheader("📋 申請一覧と照合")
+        st.subheader("申請一覧と照合")
         active_tournament = st.session_state.tournament_management.get_active_tournament()
 
 
@@ -1779,6 +1856,9 @@ def main():
                     elif verification_status == "match":
                         status_class = "status-match"
                         status_text = "一致"
+                    elif verification_status == "confirmed":
+                        status_class = "status-match"
+                        status_text = "確定済み"
                     else:
                         status_class = "status-error"
                         status_text = "不一致"
@@ -1787,7 +1867,6 @@ def main():
                         col1, col2 = st.columns(2)
 
                         with col1:
-
                             st.markdown('<div class="card">', unsafe_allow_html=True)
                             st.write(f"**氏名**: {player_name}")
                             st.write(f"**生年月日**: {birth_date}")
@@ -1798,66 +1877,101 @@ def main():
                             st.markdown('</div>', unsafe_allow_html=True)
 
                         with col2:
-
                             st.markdown('<div class="card">', unsafe_allow_html=True)
-                            # 照合ボタン
-                            if st.button(f"🔍 照合実行", key=f"verify_{app_id}", type="primary"):
-                                if not st.session_state.jba_system.logged_in:
-                                    st.error("❌ 先にJBAにログインしてください")
+                            
+                            # 照合・修正・確定の3段階フロー
+                            col_verify, col_modify, col_confirm = st.columns(3)
+                            
+                            with col_verify:
+                                if st.button(f"JBA照合", key=f"verify_{app_id}", type="primary"):
+                                    if not st.session_state.jba_system.logged_in:
+                                        st.error("先にJBAにログインしてください")
+                                    else:
+                                        st.info("JBAデータベースと照合中...")
+                                        verification_result = st.session_state.jba_system.verify_player_info(
+                                            player_name, birth_date, university
+                                        )
+                                        
+                                        # 照合結果をセッションに保存
+                                        st.session_state[f"verification_result_{app_id}"] = verification_result
+                                        st.session_state[f"show_modify_{app_id}"] = True
+                                        st.rerun()
+                            
+                            with col_modify:
+                                if st.session_state.get(f"show_modify_{app_id}", False):
+                                    if st.button(f"修正", key=f"modify_{app_id}"):
+                                        st.session_state[f"show_modify_form_{app_id}"] = True
+                                        st.rerun()
+                            
+                            with col_confirm:
+                                if verification_status != "confirmed":
+                                    if st.button(f"確定", key=f"confirm_{app_id}", type="primary"):
+                                        # 確定処理
+                                        conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                                        cursor = conn.cursor()
+                                        
+                                        cursor.execute('''
+                                            UPDATE player_applications 
+                                            SET verification_result = ?
+                                            WHERE id = ?
+                                        ''', ("confirmed", app_id))
+                                        
+                                        conn.commit()
+                                        conn.close()
+                                        st.success("確定しました")
+                                        st.rerun()
                                 else:
-                                    st.info("🔍 JBAデータベースと照合中...")
-                                    verification_result = st.session_state.jba_system.verify_player_info(
-                                        player_name, birth_date, university
-                                    )
-
-                                    # 照合結果をデータベースに保存
-                                    conn = sqlite3.connect(st.session_state.db_manager.db_path)
-                                    cursor = conn.cursor()
-
-                                    # 既存の照合結果を更新
-                                    cursor.execute('''
-                                        UPDATE player_applications 
-                                        SET verification_result = ?, jba_match_data = ?
-                                        WHERE id = ?
-                                    ''', (
-                                        verification_result["status"],
-                                        str(verification_result.get("jba_data", {})),
-                                        app_id
-                                    ))
-
-                                    # 照合結果テーブルにも保存
-                                    cursor.execute('''
-                                        INSERT OR REPLACE INTO verification_results 
-                                        (application_id, match_status, jba_name, jba_birth_date, similarity_score)
-                                        VALUES (?, ?, ?, ?, ?)
-                                    ''', (
-                                        app_id,
-                                        verification_result["status"],
-                                        verification_result.get("jba_data", {}).get("name", ""),
-                                        verification_result.get("jba_data", {}).get("birth_date", ""),
-                                        verification_result.get("similarity", 0.0)
-                                    ))
-
-                                    conn.commit()
-                                    conn.close()
-
-                                    st.rerun()
-
+                                    st.success("確定済み")
+                            
                             # 照合結果の表示
-                            if verification_status != "pending":
+                            if verification_status != "pending" and verification_status != "confirmed":
                                 if verification_status == "match":
-                                    st.success("✅ JBAデータベースと完全一致")
+                                    st.success("JBAデータベースと完全一致")
                                 elif verification_status == "name_match_birth_mismatch":
-                                    st.warning("⚠️ 名前は一致、生年月日が異なる")
+                                    st.warning("名前は一致、生年月日が異なる")
                                 elif verification_status == "not_found":
-                                    st.error("❌ JBAデータベースに該当なし")
+                                    st.error("JBAデータベースに該当なし")
                                 else:
-                                    st.info(f"📊 照合結果: {verification_status}")
-                                
-                                st.markdown('</div>', unsafe_allow_html=True)
-                            else:
-                                # pending のときの処理を書く（必要なら）
-                                pass
+                                    st.info(f"照合結果: {verification_status}")
+                            
+                            # 修正フォーム
+                            if st.session_state.get(f"show_modify_form_{app_id}", False):
+                                st.subheader("修正フォーム")
+                                with st.form(f"modify_form_{app_id}"):
+                                    # 現在の照合結果を取得
+                                    verification_result = st.session_state.get(f"verification_result_{app_id}", {})
+                                    
+                                    # 修正可能なフィールド
+                                    modified_name = st.text_input("氏名", value=player_name, key=f"mod_name_{app_id}")
+                                    modified_birth = st.text_input("生年月日", value=birth_date, key=f"mod_birth_{app_id}")
+                                    modified_university = st.text_input("大学", value=university, key=f"mod_univ_{app_id}")
+                                    
+                                    col_save, col_cancel = st.columns(2)
+                                    with col_save:
+                                        if st.form_submit_button("保存"):
+                                            # 修正内容をDBに保存
+                                            conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                                            cursor = conn.cursor()
+                                            
+                                            cursor.execute('''
+                                                UPDATE player_applications 
+                                                SET player_name = ?, birth_date = ?, university = ?
+                                                WHERE id = ?
+                                            ''', (modified_name, modified_birth, modified_university, app_id))
+                                            
+                                            conn.commit()
+                                            conn.close()
+                                            
+                                            st.success("修正内容を保存しました")
+                                            st.session_state[f"show_modify_form_{app_id}"] = False
+                                            st.rerun()
+                                    
+                                    with col_cancel:
+                                        if st.form_submit_button("キャンセル"):
+                                            st.session_state[f"show_modify_form_{app_id}"] = False
+                                            st.rerun()
+                            
+                            st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info("申請がありません")
         else:
@@ -1868,12 +1982,12 @@ def main():
     with tab3:
         if not st.session_state.is_admin:
             st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.header("🔒 アクセス制限")
-            st.error("❌ この機能は管理者のみ利用可能です")
+            st.header("アクセス制限")
+            st.error("この機能は管理者のみ利用可能です")
             st.info("管理者としてログインしてください")
             st.markdown('</div>', unsafe_allow_html=True)
         else:
-            st.header("🖨️ 印刷")
+            st.header("印刷")
 
 
         
@@ -1931,7 +2045,7 @@ def main():
 
                     with col2:
 
-                        if st.button(f"🖨️ 印刷", key=f"print_{app[0]}"):
+                        if st.button(f"印刷", key=f"print_{app[0]}"):
                             try:
                                 doc = st.session_state.print_system.create_individual_certificate(app[0])
 
@@ -1939,12 +2053,12 @@ def main():
                                     # ファイル名を生成
                                     filename = f"仮選手証_{app[1]}_{app[0]}.docx"
                                     doc.save(filename)
-                                    st.success(f"✅ {filename} を作成しました")
+                                    st.success(f"{filename} を作成しました")
                             except Exception as e:
-                                st.error(f"❌ 印刷エラー: {str(e)}")
+                                st.error(f"印刷エラー: {str(e)}")
 
                         with col3:
-                            if st.button(f"📄 詳細", key=f"detail_{app[0]}"):
+                            if st.button(f"詳細", key=f"detail_{app[0]}"):
                                 st.session_state.selected_application = app[0]
                                 st.rerun()
 
@@ -1957,30 +2071,18 @@ def main():
 
         else:
 
-            st.warning("⚠️ アクティブな大会が設定されていません")
+            st.warning("アクティブな大会が設定されていません")
     
 
 
-    # 通知
-
-    with tab4:
-        if not st.session_state.is_admin:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.header("🔒 アクセス制限")
-            st.error("❌ この機能は管理者のみ利用可能です")
-            st.info("管理者としてログインしてください")
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.header("📧 通知設定")
-
-        st.info("通知機能は開発中です")
+    # 通知機能を削除
     
 
 
     # 統計（管理者のみ）
     if admin_mode:
-        with tab5:
-            st.header("📊 統計情報")
+        with tab4:
+            st.header("統計情報")
 
             # アクティブな大会の統計
             active_tournament = st.session_state.tournament_management.get_active_tournament()
@@ -2020,21 +2122,21 @@ def main():
                 with col4:
                     st.metric("複数候補", multiple)
             else:
-                st.warning("⚠️ アクティブな大会が設定されていません")
+                st.warning("アクティブな大会が設定されていません")
 
     # 管理者機能
 
     if admin_mode:
 
-        with tab6:
+        with tab5:
 
-            st.header("🎛️ 管理者ダッシュボード")
+            st.header("管理者ダッシュボード")
 
 
             
             # 大会管理
 
-            st.subheader("🏆 大会管理")
+            st.subheader("大会管理")
 
 
             
@@ -2052,7 +2154,7 @@ def main():
 
                 with col1:
 
-                    if st.button("🔄 回答受付制御"):
+                    if st.button("回答受付制御"):
 
                         new_status = not active_tournament['response_accepting']
 
@@ -2062,7 +2164,7 @@ def main():
 
                         )
 
-                        st.success(f"✅ 回答受付を{'有効' if new_status else '無効'}にしました")
+                        st.success(f"回答受付を{'有効' if new_status else '無効'}にしました")
 
                         st.rerun()
                 
@@ -2074,13 +2176,13 @@ def main():
 
             else:
 
-                st.warning("⚠️ アクティブな大会が設定されていません")
+                st.warning("アクティブな大会が設定されていません")
             
 
 
             # 新しい大会を作成
 
-            st.subheader("➕ 新しい大会を作成")
+            st.subheader("新しい大会を作成")
 
             with st.form("create_tournament_form"):
 
@@ -2100,7 +2202,7 @@ def main():
                     auto_generated_name = f"第{tournament_number}回関東大学バスケットボール{tournament_type}"
                     st.info(f"**生成される大会名**: {auto_generated_name}")
 
-                if st.form_submit_button("🏆 大会を作成"):
+                if st.form_submit_button("大会を作成"):
 
                     if tournament_type and tournament_number and new_tournament_year:
                         tournament_name = f"第{tournament_number}回関東大学バスケットボール{tournament_type}"
@@ -2109,19 +2211,19 @@ def main():
                             tournament_name, new_tournament_year
                         )
 
-                        st.success(f"✅ 大会を作成しました（ID: {tournament_id}）")
+                        st.success(f"大会を作成しました（ID: {tournament_id}）")
 
                         st.success(f"**大会名**: {tournament_name}")
                         st.rerun()
 
                     else:
 
-                        st.error("❌ 大会種別、回数、年度を入力してください")
+                        st.error("大会種別、回数、年度を入力してください")
 
             
             # 大会を切り替え
 
-            st.subheader("🔄 大会を切り替え")
+            st.subheader("大会を切り替え")
 
             tournaments = st.session_state.tournament_management.get_all_tournaments()
 
@@ -2135,13 +2237,13 @@ def main():
 
 
                 
-                if st.button("🔄 大会を切り替え"):
+                if st.button("大会を切り替え"):
 
                     tournament_id = tournament_options[selected_tournament]
 
                     st.session_state.tournament_management.switch_tournament(tournament_id)
 
-                    st.success("✅ 大会を切り替えました")
+                    st.success("大会を切り替えました")
 
                     st.rerun()
 
@@ -2153,7 +2255,7 @@ def main():
 
             # システム設定
 
-            st.subheader("⚙️ システム設定")
+            st.subheader("システム設定")
 
             settings = st.session_state.admin_dashboard.get_system_settings()
 
@@ -2177,7 +2279,7 @@ def main():
 
 
                     
-                    if st.form_submit_button("💾 設定を保存"):
+                    if st.form_submit_button("設定を保存"):
 
                         new_settings = {
 
@@ -2199,7 +2301,7 @@ def main():
                         
                         st.session_state.admin_dashboard.save_system_settings(new_settings)
 
-                        st.success("✅ 設定を保存しました")
+                        st.success("設定を保存しました")
 
 
 
