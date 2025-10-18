@@ -1743,18 +1743,17 @@ def main():
 
     if admin_mode:
         with tab2:
-
-        if not st.session_state.is_admin:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.header("アクセス制限")
-            st.error("この機能は管理者のみ利用可能です")
-            st.info("管理者としてログインしてください")
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.header("申請照合・管理")
-            st.markdown("**管理者専用**: 申請された情報をJBAデータベースと照合し、データを管理します。")
-            st.markdown('</div>', unsafe_allow_html=True)
+            if not st.session_state.is_admin:
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                st.header("アクセス制限")
+                st.error("この機能は管理者のみ利用可能です")
+                st.info("管理者としてログインしてください")
+                st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                st.header("申請照合・管理")
+                st.markdown("**管理者専用**: 申請された情報をJBAデータベースと照合し、データを管理します。")
+                st.markdown('</div>', unsafe_allow_html=True)
 
         
         # JBAログイン情報
@@ -1885,14 +1884,14 @@ def main():
                             
                             with col_verify:
                                 if st.button(f"JBA照合", key=f"verify_{app_id}", type="primary"):
-                                    if not st.session_state.jba_system.logged_in:
+                                if not st.session_state.jba_system.logged_in:
                                         st.error("先にJBAにログインしてください")
-                                    else:
+                                else:
                                         st.info("JBAデータベースと照合中...")
-                                        verification_result = st.session_state.jba_system.verify_player_info(
-                                            player_name, birth_date, university
-                                        )
-                                        
+                                    verification_result = st.session_state.jba_system.verify_player_info(
+                                        player_name, birth_date, university
+                                    )
+
                                         # 照合結果をセッションに保存
                                         st.session_state[f"verification_result_{app_id}"] = verification_result
                                         st.session_state[f"show_modify_{app_id}"] = True
@@ -1908,22 +1907,22 @@ def main():
                                 if verification_status != "confirmed":
                                     if st.button(f"確定", key=f"confirm_{app_id}", type="primary"):
                                         # 確定処理
-                                        conn = sqlite3.connect(st.session_state.db_manager.db_path)
-                                        cursor = conn.cursor()
-                                        
-                                        cursor.execute('''
-                                            UPDATE player_applications 
+                                    conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                                    cursor = conn.cursor()
+
+                                    cursor.execute('''
+                                        UPDATE player_applications 
                                             SET verification_result = ?
-                                            WHERE id = ?
+                                        WHERE id = ?
                                         ''', ("confirmed", app_id))
-                                        
-                                        conn.commit()
-                                        conn.close()
+
+                                    conn.commit()
+                                    conn.close()
                                         st.success("確定しました")
-                                        st.rerun()
+                                    st.rerun()
                                 else:
                                     st.success("確定済み")
-                            
+
                             # 照合結果の表示
                             if verification_status != "pending" and verification_status != "confirmed":
                                 if verification_status == "match":
@@ -1971,8 +1970,8 @@ def main():
                                         if st.form_submit_button("キャンセル"):
                                             st.session_state[f"show_modify_form_{app_id}"] = False
                                             st.rerun()
-                            
-                            st.markdown('</div>', unsafe_allow_html=True)
+                                
+                                st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info("申請がありません")
         else:
@@ -1982,14 +1981,14 @@ def main():
     # 印刷（管理者のみ）
     if admin_mode:
         with tab3:
-        if not st.session_state.is_admin:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.header("アクセス制限")
-            st.error("この機能は管理者のみ利用可能です")
-            st.info("管理者としてログインしてください")
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.header("印刷")
+            if not st.session_state.is_admin:
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                st.header("アクセス制限")
+                st.error("この機能は管理者のみ利用可能です")
+                st.info("管理者としてログインしてください")
+                st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.header("印刷")
 
 
         
