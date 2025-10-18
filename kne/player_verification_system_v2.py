@@ -1884,14 +1884,14 @@ def main():
                             
                             with col_verify:
                                 if st.button(f"JBA照合", key=f"verify_{app_id}", type="primary"):
-                                if not st.session_state.jba_system.logged_in:
+                                    if not st.session_state.jba_system.logged_in:
                                         st.error("先にJBAにログインしてください")
-                                else:
+                                    else:
                                         st.info("JBAデータベースと照合中...")
-                                    verification_result = st.session_state.jba_system.verify_player_info(
-                                        player_name, birth_date, university
-                                    )
-
+                                        verification_result = st.session_state.jba_system.verify_player_info(
+                                            player_name, birth_date, university
+                                        )
+                                        
                                         # 照合結果をセッションに保存
                                         st.session_state[f"verification_result_{app_id}"] = verification_result
                                         st.session_state[f"show_modify_{app_id}"] = True
