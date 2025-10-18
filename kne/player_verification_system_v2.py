@@ -1462,12 +1462,25 @@ def main():
     """, unsafe_allow_html=True)
 
     # メインヘッダー
-    st.markdown("""
-    <div class="main-header">
-        <h1><img src="kcbf_logo.png" alt="KCBF Logo" style="width: 40px; height: 40px; margin-right: 10px; vertical-align: middle;">仮選手証・スタッフ証発行システム</h1>
-        <p>関東大学バスケットボール連盟 </p>
-    </div>
-    """, unsafe_allow_html=True)
+    import base64
+    
+    try:
+        with open("kcbf_logo.png", "rb") as img_file:
+            logo_base64 = base64.b64encode(img_file.read()).decode()
+        
+        st.markdown(f"""
+        <div class="main-header">
+            <h1><img src="data:image/png;base64,{logo_base64}" alt="KCBF Logo" style="width: 40px; height: 40px; margin-right: 10px; vertical-align: middle;">仮選手証・スタッフ証発行システム</h1>
+            <p>関東大学バスケットボール連盟</p>
+        </div>
+        """, unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.markdown("""
+        <div class="main-header">
+            <h1>仮選手証・スタッフ証発行システム</h1>
+            <p>関東大学バスケットボール連盟</p>
+        </div>
+        """, unsafe_allow_html=True)
 
     # サイドバー（システム情報を削除）
 
@@ -1554,11 +1567,9 @@ def main():
 
     with tab1:
 
-        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.header("仮選手証・仮スタッフ証申請フォーム")
         
         st.markdown("**関東大学バスケットボール連盟** の公式申請システムです。")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 
         # アクティブな大会情報を表示（フォームはガードし、アプリ全体は止めない）
@@ -1744,16 +1755,12 @@ def main():
     if admin_mode:
         with tab2:
             if not st.session_state.is_admin:
-                st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.header("アクセス制限")
                 st.error("この機能は管理者のみ利用可能です")
                 st.info("管理者としてログインしてください")
-                st.markdown('</div>', unsafe_allow_html=True)
             else:
-                st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.header("申請照合・管理")
                 st.markdown("**管理者専用**: 申請された情報をJBAデータベースと照合し、データを管理します。")
-                st.markdown('</div>', unsafe_allow_html=True)
 
         
         # JBAログイン情報
@@ -1982,11 +1989,9 @@ def main():
     if admin_mode:
         with tab3:
             if not st.session_state.is_admin:
-                st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.header("アクセス制限")
                 st.error("この機能は管理者のみ利用可能です")
                 st.info("管理者としてログインしてください")
-                st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.header("印刷")
 
