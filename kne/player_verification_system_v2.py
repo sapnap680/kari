@@ -1544,7 +1544,7 @@ def main():
 
         # 一般ユーザータブ
 
-        tab1 = st.tabs([
+        tab1, = st.tabs([
             "申請フォーム"
         ])
     
