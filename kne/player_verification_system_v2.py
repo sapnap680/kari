@@ -1907,19 +1907,19 @@ def main():
                                 if verification_status != "confirmed":
                                     if st.button(f"確定", key=f"confirm_{app_id}", type="primary"):
                                         # 確定処理
-                                    conn = sqlite3.connect(st.session_state.db_manager.db_path)
-                                    cursor = conn.cursor()
+                                        conn = sqlite3.connect(st.session_state.db_manager.db_path)
+                                        cursor = conn.cursor()
 
-                                    cursor.execute('''
-                                        UPDATE player_applications 
+                                        cursor.execute('''
+                                            UPDATE player_applications 
                                             SET verification_result = ?
-                                        WHERE id = ?
+                                            WHERE id = ?
                                         ''', ("confirmed", app_id))
 
-                                    conn.commit()
-                                    conn.close()
+                                        conn.commit()
+                                        conn.close()
                                         st.success("確定しました")
-                                    st.rerun()
+                                        st.rerun()
                                 else:
                                     st.success("確定済み")
 
