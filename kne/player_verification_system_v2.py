@@ -1463,9 +1463,11 @@ def main():
 
     # メインヘッダー
     import base64
+    import os
     
     try:
-        with open("kcbf_logo.png", "rb") as img_file:
+        logo_path = os.path.join("kne", "kcbf_logo.png")
+        with open(logo_path, "rb") as img_file:
             logo_base64 = base64.b64encode(img_file.read()).decode()
         
         st.markdown(f"""
@@ -1517,31 +1519,41 @@ def main():
     
 
 
-    # URLクエリで表示モードを切り替え（例: ?role=admin or ?mode=admin）
-    try:
-        query_params = st.query_params  # Streamlit >= 1.31
-    except Exception:
-        query_params = st.experimental_get_query_params()  # fallback
-
-    role_param = None
-    if isinstance(query_params, dict):
-        # 候補キーから最初に見つかったものを使う
-        for key in ("role", "mode", "page"):
-            if key in query_params:
-                val = query_params.get(key)
-                if isinstance(val, list):
-                    role_param = (val[0] or "").lower()
-                else:
-                    role_param = (val or "").lower()
-                break
-
-    admin_mode = (role_param == "admin")
+    # URLクエリパラメータの取得（最新版対応）
+    query_params = st.query_params
     
-    # 管理者モードでない場合は申請のみ可能
-    if not admin_mode:
-        st.session_state.is_admin = False
-    else:
-        st.session_state.is_admin = True
+    # ロール判定ロジック
+    admin_mode = False
+    
+    if query_params:
+        # 複数のキーをチェック
+        for key in ["role", "mode", "page"]:
+            if key in query_params:
+                val = query_params[key]
+                # Streamlit 1.31+ では文字列が返される
+                if isinstance(val, str):
+                    admin_mode = val.lower() == "admin"
+                # それ以前はリストが返される場合もある
+                elif isinstance(val, list) and len(val) > 0:
+                    admin_mode = val[0].lower() == "admin"
+                
+                if admin_mode:
+                    break
+    
+    st.session_state.is_admin = admin_mode
+    
+    # デバッグ情報（開発時用、後で削除可能）
+    if True:  # Trueに変更するとデバッグ表示
+        with st.sidebar:
+            st.write("**デバッグ情報**")
+            st.write(f"query_params: {query_params}")
+            st.write(f"admin_mode: {admin_mode}")
+            st.write(f"is_admin: {st.session_state.is_admin}")
+            st.write("---")
+            st.write("**テスト用URL:**")
+            st.write("`?role=admin`")
+            st.write("`?mode=admin`")
+            st.write("`?page=admin`")
 
     
     if admin_mode:
